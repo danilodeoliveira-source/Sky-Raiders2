@@ -79,7 +79,7 @@
 
     <div class="instructions">
         <span>Toque e Arraste na tela</span> para mover e atirar!<br>
-        <span>Cima:</span> Acelera | <span>Baixo:</span> Freia
+        <span>Destrua o FUEL</span> para ganhar combustível instantâneo!
     </div>
 
 <script>
@@ -124,16 +124,16 @@ function playSound(type) {
     } else if (type === 'fuel') {
         osc.type = 'sine';
         osc.frequency.setValueAtTime(300, now);
-        osc.frequency.linearRampToValueAtTime(800, now + 0.1);
-        gain.gain.setValueAtTime(0.1, now);
-        gain.gain.linearRampToValueAtTime(0.01, now + 0.1);
+        osc.frequency.linearRampToValueAtTime(800, now + 0.15);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
         osc.start(now);
-        osc.stop(now + 0.1);
+        osc.stop(now + 0.15);
     }
 }
 
 // --- ESTADO DO JOGO ---
-let gameState = 'START'; // 'START', 'PLAYING', 'GAMEOVER'
+let gameState = 'START';
 let score = 0;
 let highScore = localStorage.getItem('rr16_highscore') || 0;
 let distance = 0;
@@ -198,7 +198,7 @@ function spawnEntities() {
     }
 }
 
-// --- CONTROLES DE TOQUE DIRETO NA TELA (TOUCH) ---
+// --- CONTROLES TOUCH ---
 let isTouching = false;
 let touchPos = { x: canvas.width / 2, y: canvas.height / 2 };
 
@@ -245,12 +245,12 @@ canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
 canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
 canvas.addEventListener('touchcancel', handleTouchEnd, { passive: false });
 
-// Suporte para Mouse (PC/Desktop)
+// Suporte para Mouse (PC)
 canvas.addEventListener('mousedown', handleTouchStart);
 canvas.addEventListener('mousemove', (e) => { if (isTouching) handleTouchMove(e); });
 window.addEventListener('mouseup', handleTouchEnd);
 
-// Support Teclado Alternativo
+// Support Teclado
 const keys = {};
 window.addEventListener('keydown', e => {
     initAudio();
@@ -266,13 +266,13 @@ window.addEventListener('keyup', e => keys[e.code] = false);
 function update() {
     if (gameState !== 'PLAYING') return;
 
-    // 1. Velocidade de rolamento (baseada na altura Y do toque)
+    // Velocidade de rolamento
     let scrollSpeed = 2.5;
     if (isTouching) {
         if (touchPos.y < canvas.height * 0.35) {
-            scrollSpeed = 4.5; // Acelerar (toque na parte superior)
+            scrollSpeed = 4.5;
         } else if (touchPos.y > canvas.height * 0.65) {
-            scrollSpeed = 1.2; // Frear (toque na parte inferior)
+            scrollSpeed = 1.2;
         }
     }
     if (keys['KeyW'] || keys['ArrowUp']) scrollSpeed = 4.5;
@@ -280,22 +280,22 @@ function update() {
 
     distance += scrollSpeed;
 
-    // 2. Consumo de Combustível
+    // Consumo de Combustível
     player.fuel -= 0.06 * (scrollSpeed / 2.5);
     if (player.fuel <= 0) {
         playerExplode();
         return;
     }
 
-    // 3. Movimento do Jogador (Suave em direção ao toque)
+    // Movimento do Jogador
     if (isTouching) {
-        player.x += (player.targetX - player.x) * 0.25; // Transição suave
+        player.x += (player.targetX - player.x) * 0.25;
     } else {
         if (keys['KeyA'] || keys['ArrowLeft']) player.x -= 3.5;
         if (keys['KeyD'] || keys['ArrowRight']) player.x += 3.5;
     }
 
-    // 4. Disparo Automático ao manter o toque na tela
+    // Disparo Automático
     const now = Date.now();
     const shouldShoot = isTouching || keys['Space'];
     if (shouldShoot && now - player.lastShootTime > 170) {
@@ -304,7 +304,7 @@ function update() {
         player.lastShootTime = now;
     }
 
-    // 5. Atualizar Rio
+    // Atualizar Rio
     for (let slice of riverSlices) {
         slice.y += scrollSpeed;
     }
@@ -314,7 +314,7 @@ function update() {
         riverSlices.unshift(createRiverSlice(newY));
     }
 
-    // 6. Colisão do Jogador com Margens
+    // Colisão Margens
     const playerSlice = riverSlices.find(s => player.y >= s.y && player.y < s.y + sliceHeight);
     if (playerSlice) {
         if (player.x < playerSlice.left || player.x + player.width > playerSlice.right) {
@@ -323,7 +323,7 @@ function update() {
         }
     }
 
-    // 7. Atualizar Balas
+    // Atualizar Balas
     for (let i = bullets.length - 1; i >= 0; i--) {
         bullets[i].y -= 7;
         if (bullets[i].y < -10) bullets.splice(i, 1);
@@ -331,7 +331,7 @@ function update() {
 
     spawnEntities();
 
-    // 8. Inimigos
+    // Inimigos
     for (let i = enemies.length - 1; i >= 0; i--) {
         let e = enemies[i];
         e.y += scrollSpeed;
@@ -357,7 +357,6 @@ function update() {
             }
         }
 
-        // Jogador x Inimigo
         if (enemies[i] && checkCollision(player, e)) {
             playerExplode();
             return;
@@ -366,22 +365,29 @@ function update() {
         if (e && e.y > canvas.height + 40) enemies.splice(i, 1);
     }
 
-    // 9. Tanques de Combustível (FUEL)
+    // --- TANQUES DE COMBUSTÍVEL (FUEL) ---
     for (let i = fuelTanks.length - 1; i >= 0; i--) {
         let f = fuelTanks[i];
         f.y += scrollSpeed;
 
+        // Passar por cima: Reabastece gradualmente
         if (checkCollision(player, f)) {
             player.fuel = Math.min(player.maxFuel, player.fuel + 0.8);
             playSound('fuel');
         }
 
+        // DESTRUIR O TANQUE DE GASOLINA COM O TIRO:
         for (let j = bullets.length - 1; j >= 0; j--) {
             let b = bullets[j];
             if (checkCollision(b, f)) {
                 createExplosion(f.x + f.width/2, f.y + f.height/2);
                 playSound('explosion');
+                playSound('fuel');
                 score += 80;
+
+                // AUMENTA O TANQUE DO AVIÃO (+30 DE RECARGA INSTANTÂNEA)
+                player.fuel = Math.min(player.maxFuel, player.fuel + 30);
+
                 fuelTanks.splice(i, 1);
                 bullets.splice(j, 1);
                 break;
