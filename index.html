@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>River Raid 16-Bit Mobile</title>
+    <title>River Raid 16-Bit Touch Edition</title>
     <style>
         * {
             box-sizing: border-box;
@@ -21,28 +21,29 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: space-between;
+            justify-content: center;
             min-height: 100vh;
             overflow: hidden;
-            touch-action: none; /* Evita rolar ou dar zoom no celular */
+            touch-action: none; /* Bloqueia rolar e dar zoom no mobile */
         }
         h1 {
-            margin-top: 8px;
+            margin-bottom: 8px;
             color: #ffcc00;
             text-shadow: 2px 2px #ff0055;
-            font-size: 18px;
+            font-size: 20px;
             letter-spacing: 1px;
             text-align: center;
         }
         #game-container {
             position: relative;
-            box-shadow: 0 0 20px rgba(0, 255, 204, 0.4);
+            box-shadow: 0 0 25px rgba(0, 255, 204, 0.4);
             border: 3px solid #334466;
             border-radius: 6px;
+            width: 100%;
+            max-width: 420px;
             display: flex;
             justify-content: center;
             align-items: center;
-            margin: auto 0;
             background: #000;
         }
         canvas {
@@ -51,65 +52,20 @@
             image-rendering: pixelated;
             width: 100%;
             height: auto;
-            max-height: 60vh;
-        }
-
-        /* --- CONTROLES VIRTUAIS (TOUCH MOBILE) --- */
-        #touch-controls {
-            width: 100%;
-            max-width: 420px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 8px 15px 15px 15px;
-            box-sizing: border-box;
-        }
-        .control-group {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-        }
-        .touch-btn {
-            background: linear-gradient(145deg, #2a3342, #141923);
-            color: #00ffcc;
-            border: 2px solid #334466;
-            border-radius: 8px;
-            font-size: 18px;
-            font-weight: bold;
-            width: 52px;
-            height: 52px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            box-shadow: 0 4px #080a0e;
+            max-height: 80vh;
             cursor: pointer;
         }
-        .touch-btn:active, .touch-btn.pressed {
-            background: #00ffcc;
-            color: #000;
-            border-color: #ffffff;
-            box-shadow: 0 0 #000;
-            transform: translateY(3px);
-        }
-        .action-btn {
-            background: linear-gradient(145deg, #ff0055, #990033);
-            border-color: #ff6699;
-            color: #fff;
-            width: 65px;
-            height: 65px;
-            border-radius: 50%;
-            font-size: 13px;
-        }
-        .action-btn:active, .action-btn.pressed {
-            background: #ff3300;
-            color: #fff;
-        }
-
-        .controls-hint {
+        .instructions {
+            margin-top: 10px;
             font-size: 11px;
-            color: #888;
-            margin-bottom: 6px;
+            color: #aaa;
             text-align: center;
+            max-width: 360px;
+            line-height: 1.4;
+        }
+        .instructions span {
+            color: #00ffcc;
+            font-weight: bold;
         }
     </style>
 </head>
@@ -121,21 +77,9 @@
         <canvas id="gameCanvas" width="360" height="540"></canvas>
     </div>
 
-    <!-- Controles virtuais na tela para celular -->
-    <div id="touch-controls">
-        <div class="control-group">
-            <div id="btn-left" class="touch-btn">◀</div>
-            <div id="btn-right" class="touch-btn">▶</div>
-        </div>
-        <div class="control-group">
-            <div id="btn-up" class="touch-btn" style="font-size: 12px;">▲<br>Acel</div>
-            <div id="btn-down" class="touch-btn" style="font-size: 12px;">▼<br>Freio</div>
-            <div id="btn-shoot" class="touch-btn action-btn">TIRO</div>
-        </div>
-    </div>
-
-    <div class="controls-hint">
-        Mobile: Toque nos botões | PC: Setas/WASD + Espaço
+    <div class="instructions">
+        <span>Toque e Arraste na tela</span> para mover e atirar!<br>
+        <span>Cima:</span> Acelera | <span>Baixo:</span> Freia
     </div>
 
 <script>
@@ -189,7 +133,7 @@ function playSound(type) {
 }
 
 // --- ESTADO DO JOGO ---
-let gameState = 'START';
+let gameState = 'START'; // 'START', 'PLAYING', 'GAMEOVER'
 let score = 0;
 let highScore = localStorage.getItem('rr16_highscore') || 0;
 let distance = 0;
@@ -197,71 +141,14 @@ let distance = 0;
 // --- JOGADOR ---
 const player = {
     x: canvas.width / 2 - 12,
-    y: canvas.height - 80,
+    y: canvas.height - 90,
     width: 24,
     height: 28,
-    speedX: 3.5,
+    targetX: canvas.width / 2 - 12,
     fuel: 100,
     maxFuel: 100,
     lastShootTime: 0
 };
-
-// --- CONTROLES (TECLADO + TOUCH VIRTUAL) ---
-const keys = {};
-
-window.addEventListener('keydown', e => {
-    initAudio();
-    keys[e.code] = true;
-    if ((gameState === 'START' || gameState === 'GAMEOVER') && e.code === 'Space') {
-        resetGame();
-        gameState = 'PLAYING';
-    }
-});
-window.addEventListener('keyup', e => keys[e.code] = false);
-
-// Suporte aos Botões Touch
-function setupTouchButton(elementId, keyCode) {
-    const btn = document.getElementById(elementId);
-    
-    const startPress = (e) => {
-        if (e.cancelable) e.preventDefault();
-        initAudio();
-        keys[keyCode] = true;
-        btn.classList.add('pressed');
-
-        if (gameState === 'START' || gameState === 'GAMEOVER') {
-            resetGame();
-            gameState = 'PLAYING';
-        }
-    };
-
-    const endPress = (e) => {
-        if (e.cancelable) e.preventDefault();
-        keys[keyCode] = false;
-        btn.classList.remove('pressed');
-    };
-
-    btn.addEventListener('touchstart', startPress, { passive: false });
-    btn.addEventListener('touchend', endPress, { passive: false });
-    btn.addEventListener('touchcancel', endPress, { passive: false });
-    btn.addEventListener('mousedown', startPress);
-    btn.addEventListener('mouseup', endPress);
-}
-
-setupTouchButton('btn-left', 'ArrowLeft');
-setupTouchButton('btn-right', 'ArrowRight');
-setupTouchButton('btn-up', 'ArrowUp');
-setupTouchButton('btn-down', 'ArrowDown');
-setupTouchButton('btn-shoot', 'Space');
-
-// Toque na tela para iniciar/reiniciar
-canvas.addEventListener('touchstart', (e) => {
-    initAudio();
-    if (gameState === 'START' || gameState === 'GAMEOVER') {
-        resetGame();
-        gameState = 'PLAYING';
-    }
-});
 
 // --- RIO E TERRENO ---
 const sliceHeight = 10;
@@ -311,37 +198,113 @@ function spawnEntities() {
     }
 }
 
-// --- ATUALIZAÇÃO ---
+// --- CONTROLES DE TOQUE DIRETO NA TELA (TOUCH) ---
+let isTouching = false;
+let touchPos = { x: canvas.width / 2, y: canvas.height / 2 };
+
+function getCanvasPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const touch = e.touches ? e.touches[0] : e;
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    return {
+        x: (touch.clientX - rect.left) * scaleX,
+        y: (touch.clientY - rect.top) * scaleY
+    };
+}
+
+function handleTouchStart(e) {
+    if (e.cancelable) e.preventDefault();
+    initAudio();
+
+    if (gameState === 'START' || gameState === 'GAMEOVER') {
+        resetGame();
+        gameState = 'PLAYING';
+    }
+
+    isTouching = true;
+    touchPos = getCanvasPos(e);
+    player.targetX = touchPos.x - player.width / 2;
+}
+
+function handleTouchMove(e) {
+    if (e.cancelable) e.preventDefault();
+    if (!isTouching) return;
+    touchPos = getCanvasPos(e);
+    player.targetX = touchPos.x - player.width / 2;
+}
+
+function handleTouchEnd(e) {
+    if (e.cancelable) e.preventDefault();
+    isTouching = false;
+}
+
+// Eventos Touch (Mobile)
+canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+canvas.addEventListener('touchcancel', handleTouchEnd, { passive: false });
+
+// Suporte para Mouse (PC/Desktop)
+canvas.addEventListener('mousedown', handleTouchStart);
+canvas.addEventListener('mousemove', (e) => { if (isTouching) handleTouchMove(e); });
+window.addEventListener('mouseup', handleTouchEnd);
+
+// Support Teclado Alternativo
+const keys = {};
+window.addEventListener('keydown', e => {
+    initAudio();
+    keys[e.code] = true;
+    if ((gameState === 'START' || gameState === 'GAMEOVER') && e.code === 'Space') {
+        resetGame();
+        gameState = 'PLAYING';
+    }
+});
+window.addEventListener('keyup', e => keys[e.code] = false);
+
+// --- ATUALIZAÇÃO DO JOGO ---
 function update() {
     if (gameState !== 'PLAYING') return;
 
-    // Velocidade de rolamento
+    // 1. Velocidade de rolamento (baseada na altura Y do toque)
     let scrollSpeed = 2.5;
+    if (isTouching) {
+        if (touchPos.y < canvas.height * 0.35) {
+            scrollSpeed = 4.5; // Acelerar (toque na parte superior)
+        } else if (touchPos.y > canvas.height * 0.65) {
+            scrollSpeed = 1.2; // Frear (toque na parte inferior)
+        }
+    }
     if (keys['KeyW'] || keys['ArrowUp']) scrollSpeed = 4.5;
     if (keys['KeyS'] || keys['ArrowDown']) scrollSpeed = 1.2;
 
     distance += scrollSpeed;
 
-    // Consumo de Combustível
+    // 2. Consumo de Combustível
     player.fuel -= 0.06 * (scrollSpeed / 2.5);
     if (player.fuel <= 0) {
         playerExplode();
         return;
     }
 
-    // Movimento do Jogador
-    if (keys['KeyA'] || keys['ArrowLeft']) player.x -= player.speedX;
-    if (keys['KeyD'] || keys['ArrowRight']) player.x += player.speedX;
+    // 3. Movimento do Jogador (Suave em direção ao toque)
+    if (isTouching) {
+        player.x += (player.targetX - player.x) * 0.25; // Transição suave
+    } else {
+        if (keys['KeyA'] || keys['ArrowLeft']) player.x -= 3.5;
+        if (keys['KeyD'] || keys['ArrowRight']) player.x += 3.5;
+    }
 
-    // Disparo
+    // 4. Disparo Automático ao manter o toque na tela
     const now = Date.now();
-    if (keys['Space'] && now - player.lastShootTime > 180) {
+    const shouldShoot = isTouching || keys['Space'];
+    if (shouldShoot && now - player.lastShootTime > 170) {
         bullets.push({ x: player.x + player.width / 2 - 2, y: player.y, width: 4, height: 10 });
         playSound('shoot');
         player.lastShootTime = now;
     }
 
-    // Atualizar Rio
+    // 5. Atualizar Rio
     for (let slice of riverSlices) {
         slice.y += scrollSpeed;
     }
@@ -351,7 +314,7 @@ function update() {
         riverSlices.unshift(createRiverSlice(newY));
     }
 
-    // Colisão Margens
+    // 6. Colisão do Jogador com Margens
     const playerSlice = riverSlices.find(s => player.y >= s.y && player.y < s.y + sliceHeight);
     if (playerSlice) {
         if (player.x < playerSlice.left || player.x + player.width > playerSlice.right) {
@@ -360,7 +323,7 @@ function update() {
         }
     }
 
-    // Balas
+    // 7. Atualizar Balas
     for (let i = bullets.length - 1; i >= 0; i--) {
         bullets[i].y -= 7;
         if (bullets[i].y < -10) bullets.splice(i, 1);
@@ -368,7 +331,7 @@ function update() {
 
     spawnEntities();
 
-    // Inimigos
+    // 8. Inimigos
     for (let i = enemies.length - 1; i >= 0; i--) {
         let e = enemies[i];
         e.y += scrollSpeed;
@@ -381,7 +344,7 @@ function update() {
             }
         }
 
-        // Colisão Bala x Inimigo
+        // Bala x Inimigo
         for (let j = bullets.length - 1; j >= 0; j--) {
             let b = bullets[j];
             if (checkCollision(b, e)) {
@@ -394,7 +357,7 @@ function update() {
             }
         }
 
-        // Colisão Jogador x Inimigo
+        // Jogador x Inimigo
         if (enemies[i] && checkCollision(player, e)) {
             playerExplode();
             return;
@@ -403,7 +366,7 @@ function update() {
         if (e && e.y > canvas.height + 40) enemies.splice(i, 1);
     }
 
-    // Tanques de Combustível
+    // 9. Tanques de Combustível (FUEL)
     for (let i = fuelTanks.length - 1; i >= 0; i--) {
         let f = fuelTanks[i];
         f.y += scrollSpeed;
@@ -462,6 +425,7 @@ function playerExplode() {
     createExplosion(player.x + player.width / 2, player.y + player.height / 2);
     playSound('explosion');
     gameState = 'GAMEOVER';
+    isTouching = false;
     if (score > highScore) {
         highScore = score;
         localStorage.setItem('rr16_highscore', highScore);
@@ -473,6 +437,7 @@ function resetGame() {
     distance = 0;
     player.fuel = 100;
     player.x = canvas.width / 2 - 12;
+    player.targetX = player.x;
     bullets = [];
     enemies = [];
     fuelTanks = [];
@@ -594,9 +559,9 @@ function draw() {
 
     // Overlays
     if (gameState === 'START') {
-        drawOverlay('RIVER RAID 16-BIT', 'Toque ou Pressione ESPAÇO');
+        drawOverlay('RIVER RAID 16-BIT', 'Toque na tela para Iniciar');
     } else if (gameState === 'GAMEOVER') {
-        drawOverlay('FIM DE JOGO', 'Toque para Reiniciar');
+        drawOverlay('FIM DE JOGO', 'Toque na tela para Reiniciar');
     }
 }
 
