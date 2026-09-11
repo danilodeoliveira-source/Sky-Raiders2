@@ -272,16 +272,39 @@
         let riverOffset = 0;
         let baseScrollSpeed = 1.2;
 
-        const bullets = [];
-        let entities = [];
-        const keys = { up: false, down: false, left: false, right: false };
+        let shootTimer = 0;
+        const SHOOT_COOLDOWN = 10; // Cadência dos tiros contínuos (em frames)
 
-        // Calcula as bordas do rio com base no ponto Y relativo do mundo
+        let bullets = [];
+        let entities = [];
+        const keys = { up: false, down: false, left: false, right: false, shoot: false };
+
         function getRiverBounds(screenY) {
             const worldY = screenY - riverOffset;
             const center = 110 + Math.sin(worldY * 0.015) * 35;
             const width = 100 + Math.cos(worldY * 0.01) * 20;
             return { left: center - width / 2, right: center + width / 2 };
+        }
+
+        function resetGame() {
+            riverOffset = 0;
+            fuel = 100;
+            score = 0;
+            shootTimer = 0;
+            entities = [];
+            bullets = [];
+            
+            const bounds = getRiverBounds(210);
+            player.x = (bounds.left + bounds.right) / 2 - player.w / 2;
+            player.y = 210;
+
+            keys.left = false;
+            keys.right = false;
+            keys.up = false;
+            keys.down = false;
+            keys.shoot = false;
+
+            gameOver = false;
         }
 
         function spawnEntity() {
@@ -301,10 +324,8 @@
                     entities.push({
                         type,
                         x,
-                        // Posição estática no mundo
                         worldY: spawnScreenY - riverOffset,
                         w: sprWidth,
-                        // Movimento estritamente HORIZONTAL (alguns fixos, outros patrulham)
                         vx: (type === 'HELI') ? (Math.random() > 0.5 ? 0.6 : -0.6) :
                             (type === 'SHIP') ? (Math.random() > 0.5 ? 0.3 : -0.3) : 0
                     });
@@ -325,19 +346,23 @@
                 return;
             }
 
-            // O avanço do avião rola o cenário
             riverOffset += currentScrollSpeed;
 
             if (keys.left) player.x -= player.speed;
             if (keys.right) player.x += player.speed;
 
-            // Colisão com a margem
+            // Disparo contínuo com cooldown
+            if (shootTimer > 0) shootTimer--;
+            if (keys.shoot && shootTimer === 0) {
+                bullets.push({ x: player.x + 8, y: player.y });
+                shootTimer = SHOOT_COOLDOWN;
+            }
+
             const currentBounds = getRiverBounds(player.y);
             if (player.x < currentBounds.left || player.x + player.w > currentBounds.right) {
                 gameOver = true;
             }
 
-            // Atualiza tiros
             for (let i = bullets.length - 1; i >= 0; i--) {
                 bullets[i].y -= 6;
                 if (bullets[i].y < 0) bullets.splice(i, 1);
@@ -345,17 +370,12 @@
 
             spawnEntity();
 
-            // Atualiza elementos no rio
             for (let i = entities.length - 1; i >= 0; i--) {
                 const e = entities[i];
-                
-                // Posição Y na tela calculada a partir do avanço do rio
                 const screenY = e.worldY + riverOffset;
                 
-                // Movimento puramente HORIZONTAL
                 e.x += e.vx;
 
-                // Contenção lateral dentro da água
                 const b = getRiverBounds(screenY);
                 const minX = b.left + 2;
                 const maxX = b.right - e.w - 2;
@@ -370,7 +390,6 @@
 
                 let destroyed = false;
 
-                // Colisão Tiro x Inimigo
                 for (let j = bullets.length - 1; j >= 0; j--) {
                     const bullet = bullets[j];
                     if (bullet.x >= e.x && bullet.x <= e.x + e.w &&
@@ -394,7 +413,6 @@
                     continue;
                 }
 
-                // Colisão Jogador x Inimigo/Combustível
                 if (player.x < e.x + e.w && player.x + player.w > e.x &&
                     player.y < screenY + 16 && player.y + player.h > screenY) {
                     
@@ -417,7 +435,6 @@
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // Desenha Rio e Terreno
             for (let y = 0; y < canvas.height; y += 4) {
                 const bounds = getRiverBounds(y);
                 ctx.fillStyle = '#386641';
@@ -438,24 +455,20 @@
                 ctx.fillStyle = '#FFF';
                 ctx.font = '11px monospace';
                 ctx.fillText(`SCORE: ${Math.floor(score)}`, canvas.width / 2, 135);
-                ctx.fillText('Aperte A p/ Recomeçar', canvas.width / 2, 160);
+                ctx.fillText('Aperte Espaço ou Botão A', canvas.width / 2, 160);
                 return;
             }
 
-            // Desenha os elementos nos seus pontos fixos no leito do rio
             entities.forEach(e => {
                 const screenY = e.worldY + riverOffset;
                 drawSprite(e.type, e.x, screenY);
             });
 
-            // Tiros
             ctx.fillStyle = '#FACC15';
             bullets.forEach(b => ctx.fillRect(b.x, b.y, 2, 6));
 
-            // Avião
             drawSprite('PLAYER', player.x, player.y);
 
-            // HUD
             ctx.fillStyle = '#11111b';
             ctx.fillRect(0, 0, canvas.width, 24);
             
@@ -477,25 +490,18 @@
             requestAnimationFrame(gameLoop);
         }
 
-        function shoot() {
-            if (gameOver) {
-                gameOver = false;
-                fuel = 100;
-                score = 0;
-                entities = [];
-                player.x = 100;
-                player.y = 210;
-                return;
-            }
-            bullets.push({ x: player.x + 8, y: player.y });
-        }
-
         window.addEventListener('keydown', e => {
+            if (gameOver) {
+                if (e.key === ' ' || e.key === 'Enter') {
+                    resetGame();
+                    return;
+                }
+            }
             if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = true;
             if (e.key === 'ArrowRight' || e.key === 'd') keys.right = true;
             if (e.key === 'ArrowUp' || e.key === 'w') keys.up = true;
             if (e.key === 'ArrowDown' || e.key === 's') keys.down = true;
-            if (e.key === ' ' || e.key === 'j') shoot();
+            if (e.key === ' ' || e.key === 'j') keys.shoot = true;
         });
 
         window.addEventListener('keyup', e => {
@@ -503,15 +509,32 @@
             if (e.key === 'ArrowRight' || e.key === 'd') keys.right = false;
             if (e.key === 'ArrowUp' || e.key === 'w') keys.up = false;
             if (e.key === 'ArrowDown' || e.key === 's') keys.down = false;
+            if (e.key === ' ' || e.key === 'j') keys.shoot = false;
         });
 
         function bindButton(id, key) {
             const btn = document.getElementById(id);
-            btn.addEventListener('mousedown', () => keys[key] = true);
+            btn.addEventListener('mousedown', () => { if (!gameOver) keys[key] = true; });
             btn.addEventListener('mouseup', () => keys[key] = false);
             btn.addEventListener('mouseleave', () => keys[key] = false);
-            btn.addEventListener('touchstart', e => { e.preventDefault(); keys[key] = true; });
+            btn.addEventListener('touchstart', e => { e.preventDefault(); if (!gameOver) keys[key] = true; });
             btn.addEventListener('touchend', e => { e.preventDefault(); keys[key] = false; });
+        }
+
+        function bindActionButton(id) {
+            const btn = document.getElementById(id);
+            btn.addEventListener('mousedown', () => { 
+                if (gameOver) resetGame();
+                else keys.shoot = true; 
+            });
+            btn.addEventListener('mouseup', () => keys.shoot = false);
+            btn.addEventListener('mouseleave', () => keys.shoot = false);
+            btn.addEventListener('touchstart', e => { 
+                e.preventDefault(); 
+                if (gameOver) resetGame();
+                else keys.shoot = true; 
+            });
+            btn.addEventListener('touchend', e => { e.preventDefault(); keys.shoot = false; });
         }
 
         bindButton('btn-up', 'up');
@@ -519,9 +542,10 @@
         bindButton('btn-left', 'left');
         bindButton('btn-right', 'right');
 
-        document.getElementById('btn-a').addEventListener('click', shoot);
-        document.getElementById('btn-b').addEventListener('click', shoot);
+        bindActionButton('btn-a');
+        bindActionButton('btn-b');
 
+        resetGame();
         gameLoop();
     </script>
 </body>
