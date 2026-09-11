@@ -3,340 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Retro Game Console</title>
+    <title>Game</title>
     <style>
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            user-select: none;
-            -webkit-user-select: none;
         }
 
         body {
-            background-color: #090a0f;
+            background-color: #0f0f14;
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            font-family: 'Segoe UI', system-ui, sans-serif;
         }
 
-        /* Corpo do Game Boy / Console */
-        #console {
+        #game-wrapper {
             width: 320px;
-            background: linear-gradient(180deg, #232533 0%, #171824 100%);
-            border-radius: 20px;
-            padding: 20px;
-            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.9), inset 0 1px 2px rgba(255, 255, 255, 0.1);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 20px;
-            border: 1px solid #2d3042;
-        }
-
-        /* Moldura da Tela */
-        .screen-bezel {
-            width: 100%;
-            background-color: #0d0e15;
+            height: 480px;
+            background-color: #1a1a24;
             border-radius: 12px;
-            padding: 12px;
-            box-shadow: inset 0 4px 12px rgba(0, 0, 0, 0.8);
-            border: 1px solid #1f2130;
+            overflow: hidden;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
         }
 
-        .screen-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 8px;
-            padding: 0 4px;
-        }
-
-        .power-led {
-            width: 8px;
-            height: 8px;
-            background-color: #ff3333;
-            border-radius: 50%;
-            box-shadow: 0 0 8px #ff3333;
-        }
-
-        .screen-title {
-            color: #4a5168;
-            font-size: 10px;
-            font-weight: 700;
-            letter-spacing: 1.5px;
-        }
-
-        /* Canvas da Tela */
         #gameCanvas {
             width: 100%;
-            height: 250px;
-            background-color: #12131c;
-            border-radius: 6px;
+            height: 100%;
             display: block;
-            image-rendering: pixelated;
-        }
-
-        /* Área dos Controles */
-        .controls {
-            width: 100%;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 5px 5px 5px;
-        }
-
-        /* D-Pad Perfeitamente Alinhado via CSS Grid */
-        .dpad {
-            display: grid;
-            grid-template-columns: 28px 28px 28px;
-            grid-template-rows: 28px 28px 28px;
-            width: 84px;
-            height: 84px;
-        }
-
-        .dpad-btn {
-            background-color: #2b2d3e;
-            border: none;
-            cursor: pointer;
-            box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.1);
-        }
-
-        .dpad-btn:active {
-            background-color: #1c1d29;
-        }
-
-        .dpad-up { grid-column: 2; grid-row: 1; border-radius: 6px 6px 0 0; }
-        .dpad-left { grid-column: 1; grid-row: 2; border-radius: 6px 0 0 6px; }
-        .dpad-center { grid-column: 2; grid-row: 2; background-color: #2b2d3e; }
-        .dpad-right { grid-column: 3; grid-row: 2; border-radius: 0 6px 6px 0; }
-        .dpad-down { grid-column: 2; grid-row: 3; border-radius: 0 0 6px 6px; }
-
-        /* Botões A / B */
-        .action-buttons {
-            display: flex;
-            gap: 12px;
-            transform: rotate(-12deg);
-        }
-
-        .btn {
-            width: 44px;
-            height: 44px;
-            border-radius: 50%;
-            border: none;
-            font-weight: bold;
-            font-size: 15px;
-            cursor: pointer;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            box-shadow: 0 4px 0 rgba(0, 0, 0, 0.6), inset 0 2px 2px rgba(255, 255, 255, 0.2);
-        }
-
-        .btn:active {
-            transform: translateY(2px);
-            box-shadow: 0 2px 0 rgba(0, 0, 0, 0.6);
-        }
-
-        .btn-b { background-color: #eab308; color: #1a1a1a; }
-        .btn-a { background-color: #ef4444; color: #ffffff; }
-
-        /* Botões Select / Start */
-        .system-buttons {
-            display: flex;
-            gap: 16px;
-            margin-top: 5px;
-        }
-
-        .sys-btn {
-            width: 42px;
-            height: 10px;
-            background-color: #2b2d3e;
-            border: none;
-            border-radius: 5px;
-            transform: rotate(-25deg);
-            cursor: pointer;
-            box-shadow: 0 2px 0 #0d0e15;
         }
     </style>
 </head>
 <body>
 
-    <div id="console">
-        <div class="screen-bezel">
-            <div class="screen-header">
-                <div class="power-led"></div>
-                <div class="screen-title">8-BIT SYSTEM</div>
-            </div>
-            <canvas id="gameCanvas" width="256" height="230"></canvas>
-        </div>
-
-        <div class="controls">
-            <!-- Cruzeta de Direção -->
-            <div class="dpad">
-                <button class="dpad-btn dpad-up" id="btn-up"></button>
-                <button class="dpad-btn dpad-left" id="btn-left"></button>
-                <div class="dpad-center"></div>
-                <button class="dpad-btn dpad-right" id="btn-right"></button>
-                <button class="dpad-btn dpad-down" id="btn-down"></button>
-            </div>
-
-            <!-- Botões B e A -->
-            <div class="action-buttons">
-                <button class="btn btn-b" id="btn-b">B</button>
-                <button class="btn btn-a" id="btn-a">A</button>
-            </div>
-        </div>
-
-        <div class="system-buttons">
-            <button class="sys-btn" id="btn-select"></button>
-            <button class="sys-btn" id="btn-start"></button>
-        </div>
+    <div id="game-wrapper">
+        <canvas id="gameCanvas" width="320" height="480"></canvas>
     </div>
 
-    <script>
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-
-        // Carrega imagem opcional
-        let bgImage = new Image();
-        let imageLoaded = false;
-        bgImage.src = 'image_e9ab6b.png';
-        bgImage.onload = () => { imageLoaded = true; };
-
-        // Estado do Jogo (Nave Espacial)
-        const player = { x: 116, y: 180, w: 24, h: 24, speed: 3 };
-        const bullets = [];
-        const enemies = [];
-        let score = 0;
-        const keys = { up: false, down: false, left: false, right: false };
-
-        function spawnEnemy() {
-            if (Math.random() < 0.03) {
-                enemies.push({
-                    x: Math.random() * (canvas.width - 20),
-                    y: -20,
-                    size: 16,
-                    speed: 1.5 + Math.random() * 1.5
-                });
-            }
-        }
-
-        function update() {
-            // Movimentação
-            if (keys.left && player.x > 0) player.x -= player.speed;
-            if (keys.right && player.x < canvas.width - player.w) player.x += player.speed;
-            if (keys.up && player.y > 20) player.y -= player.speed;
-            if (keys.down && player.y < canvas.height - player.h) player.y += player.speed;
-
-            // Projéteis
-            bullets.forEach((b, index) => {
-                b.y -= 5;
-                if (b.y < 0) bullets.splice(index, 1);
-            });
-
-            // Inimigos
-            spawnEnemy();
-            enemies.forEach((enemy, eIdx) => {
-                enemy.y += enemy.speed;
-
-                // Colisão com tiros
-                bullets.forEach((b, bIdx) => {
-                    if (b.x > enemy.x && b.x < enemy.x + enemy.size &&
-                        b.y > enemy.y && b.y < enemy.y + enemy.size) {
-                        enemies.splice(eIdx, 1);
-                        bullets.splice(bIdx, 1);
-                        score += 10;
-                    }
-                });
-
-                if (enemy.y > canvas.height) enemies.splice(eIdx, 1);
-            });
-        }
-
-        function draw() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            if (imageLoaded) {
-                ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
-            } else {
-                // Fundo Espacial Retrô
-                ctx.fillStyle = '#0f101d';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-                // HUD / Pontuação
-                ctx.fillStyle = '#6366f1';
-                ctx.fillRect(0, 0, canvas.width, 22);
-                ctx.fillStyle = '#ffffff';
-                ctx.font = 'bold 11px monospace';
-                ctx.fillText(`SCORE: ${score}`, 8, 15);
-            }
-
-            // Desenha Inimigos
-            ctx.fillStyle = '#ef4444';
-            enemies.forEach(e => {
-                ctx.fillRect(e.x, e.y, e.size, e.size);
-            });
-
-            // Desenha Projéteis
-            ctx.fillStyle = '#facc15';
-            bullets.forEach(b => {
-                ctx.fillRect(b.x, b.y, 3, 8);
-            });
-
-            // Desenha Jogador (Nave)
-            ctx.fillStyle = '#38bdf8';
-            ctx.fillRect(player.x + 8, player.y, 8, 24);
-            ctx.fillRect(player.x, player.y + 10, 24, 8);
-        }
-
-        function loop() {
-            update();
-            draw();
-            requestAnimationFrame(loop);
-        }
-
-        function shoot() {
-            bullets.push({ x: player.x + 10, y: player.y });
-        }
-
-        // Teclado
-        window.addEventListener('keydown', e => {
-            if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = true;
-            if (e.key === 'ArrowRight' || e.key === 'd') keys.right = true;
-            if (e.key === 'ArrowUp' || e.key === 'w') keys.up = true;
-            if (e.key === 'ArrowDown' || e.key === 's') keys.down = true;
-            if (e.key === ' ' || e.key === 'j') shoot();
-        });
-
-        window.addEventListener('keyup', e => {
-            if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = false;
-            if (e.key === 'ArrowRight' || e.key === 'd') keys.right = false;
-            if (e.key === 'ArrowUp' || e.key === 'w') keys.up = false;
-            if (e.key === 'ArrowDown' || e.key === 's') keys.down = false;
-        });
-
-        // Eventos dos Botões do D-Pad
-        function bindButton(id, key) {
-            const btn = document.getElementById(id);
-            btn.addEventListener('mousedown', () => keys[key] = true);
-            btn.addEventListener('mouseup', () => keys[key] = false);
-            btn.addEventListener('mouseleave', () => keys[key] = false);
-            btn.addEventListener('touchstart', e => { e.preventDefault(); keys[key] = true; });
-            btn.addEventListener('touchend', e => { e.preventDefault(); keys[key] = false; });
-        }
-
-        bindButton('btn-up', 'up');
-        bindButton('btn-down', 'down');
-        bindButton('btn-left', 'left');
-        bindButton('btn-right', 'right');
-
-        document.getElementById('btn-a').addEventListener('click', shoot);
-        document.getElementById('btn-b').addEventListener('click', shoot);
-
-        loop();
-    </script>
+    <script src="main.js"></script>
 </body>
 </html>
