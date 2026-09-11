@@ -309,7 +309,7 @@
 
         function spawnEntity() {
             // Aumentada a probabilidade de spawn por frame para criar mais inimigos
-            if (Math.random() < 0.045) {
+            if (Math.random() < 0.035) {
                 const types = ['HELI', 'SHIP', 'FUEL'];
                 const type = types[Math.floor(Math.random() * types.length)];
                 const sprWidth = SPRITES[type].width;
