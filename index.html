@@ -273,7 +273,7 @@
         let baseScrollSpeed = 1.2;
 
         let shootTimer = 0;
-        const SHOOT_COOLDOWN = 10; // Cadência dos tiros contínuos (em frames)
+        const SHOOT_COOLDOWN = 10;
 
         let bullets = [];
         let entities = [];
@@ -308,7 +308,8 @@
         }
 
         function spawnEntity() {
-            if (Math.random() < 0.02) {
+            // Aumentada a probabilidade de spawn por frame para criar mais inimigos
+            if (Math.random() < 0.045) {
                 const types = ['HELI', 'SHIP', 'FUEL'];
                 const type = types[Math.floor(Math.random() * types.length)];
                 const sprWidth = SPRITES[type].width;
@@ -351,7 +352,6 @@
             if (keys.left) player.x -= player.speed;
             if (keys.right) player.x += player.speed;
 
-            // Disparo contínuo com cooldown
             if (shootTimer > 0) shootTimer--;
             if (keys.shoot && shootTimer === 0) {
                 bullets.push({ x: player.x + 8, y: player.y });
