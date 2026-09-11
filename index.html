@@ -22,7 +22,6 @@
             font-family: monospace, sans-serif;
         }
 
-        /* Console Frame */
         #console {
             width: 330px;
             background: #232634;
@@ -36,7 +35,6 @@
             border: 2px solid #313547;
         }
 
-        /* Moldura da Tela */
         .screen-bezel {
             width: 100%;
             background-color: #151722;
@@ -68,7 +66,6 @@
             letter-spacing: 1px;
         }
 
-        /* Canvas da Tela */
         #gameCanvas {
             width: 100%;
             height: 270px;
@@ -78,7 +75,6 @@
             image-rendering: pixelated;
         }
 
-        /* Área dos Controles */
         .controls {
             width: 100%;
             display: flex;
@@ -87,7 +83,6 @@
             padding: 10px 5px;
         }
 
-        /* D-Pad via CSS Grid */
         .dpad {
             display: grid;
             grid-template-columns: 28px 28px 28px;
@@ -110,7 +105,6 @@
         .dpad-right { grid-column: 3; grid-row: 2; border-radius: 0 6px 6px 0; }
         .dpad-down { grid-column: 2; grid-row: 3; border-radius: 0 0 6px 6px; }
 
-        /* Botões A / B */
         .action-buttons {
             display: flex;
             gap: 12px;
@@ -139,7 +133,6 @@
         .btn-b { background-color: #f9e2af; color: #11111b; }
         .btn-a { background-color: #f38ba8; color: #11111b; }
 
-        /* System Buttons */
         .system-buttons {
             display: flex;
             gap: 16px;
@@ -192,19 +185,12 @@
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
-        // PALETAS DE CORES PIXEL ART
         const C = {
-            O: '#E65100', // Laranja FUEL
-            W: '#FFFFFF', // Branco
-            Y: '#FACC15', // Amarelo
-            G: '#4D7C0F', // Verde
-            B: '#1E40AF', // Azul
-            K: '#111827', // Preto
-            R: '#DC2626', // Vermelho
-            BR: '#78350F' // Marrom
+            O: '#E65100', W: '#FFFFFF', Y: '#FACC15',
+            G: '#4D7C0F', B: '#1E40AF', K: '#111827',
+            R: '#DC2626', BR: '#78350F'
         };
 
-        // MATRIZES DE PIXEL ART
         const SPRITES = {
             FUEL: {
                 scale: 1.5,
@@ -244,7 +230,8 @@
                     " RRRRRRRRRR "
                 ]
             },
-            PLANE: {
+            // Avião do Jogador (Biplano)
+            PLAYER: {
                 scale: 1.5,
                 matrix: [
                     "    WWWW    ",
@@ -254,19 +241,6 @@
                     "    BRBR    ",
                     " RRRRRRRRRR ",
                     "     RR     "
-                ]
-            },
-            PLAYER: {
-                scale: 1.5,
-                matrix: [
-                    "    YY    ",
-                    "    YY    ",
-                    "   YYYY   ",
-                    "  YYYYYY  ",
-                    " YYYYYYYY ",
-                    "YYYYYYYYYY",
-                    " Y  YY  Y ",
-                    "    OO    "
                 ]
             }
         };
@@ -288,12 +262,12 @@
             }
         }
 
-        let player = { x: 100, y: 210, w: 15, h: 12, speed: 2.5 };
+        let player = { x: 100, y: 210, w: 18, h: 12, speed: 2.2 };
         let fuel = 100;
         let score = 0;
         let gameOver = false;
         let riverOffset = 0;
-        const scrollSpeed = 1.2;
+        let baseScrollSpeed = 1.2;
 
         const bullets = [];
         let entities = [];
@@ -306,8 +280,9 @@
         }
 
         function spawnEntity() {
-            if (Math.random() < 0.025) {
-                const types = ['HELI', 'SHIP', 'PLANE', 'FUEL'];
+            if (Math.random() < 0.02) {
+                // Apenas Helicóptero, Navio (obstáculos) e Tanque de Combustível
+                const types = ['HELI', 'SHIP', 'FUEL'];
                 const type = types[Math.floor(Math.random() * types.length)];
                 const bounds = getRiverBounds(-30);
                 const x = bounds.left + Math.random() * Math.max(10, (bounds.right - bounds.left - 25));
@@ -316,7 +291,7 @@
                     type,
                     x,
                     y: -30,
-                    vx: (type === 'HELI' || type === 'SHIP') ? (Math.random() > 0.5 ? 0.8 : -0.8) : 0
+                    vx: (type === 'HELI' || type === 'SHIP') ? (Math.random() > 0.5 ? 0.6 : -0.6) : 0
                 });
             }
         }
@@ -324,18 +299,20 @@
         function update() {
             if (gameOver) return;
 
-            fuel -= 0.06;
+            let currentScrollSpeed = baseScrollSpeed;
+            if (keys.up) currentScrollSpeed = 2.4;
+            if (keys.down) currentScrollSpeed = 0.6;
+
+            fuel -= 0.05 * (currentScrollSpeed / baseScrollSpeed);
             if (fuel <= 0) {
                 gameOver = true;
                 return;
             }
 
-            riverOffset += scrollSpeed;
+            riverOffset += currentScrollSpeed;
 
             if (keys.left) player.x -= player.speed;
             if (keys.right) player.x += player.speed;
-            if (keys.up && player.y > 30) player.y -= player.speed;
-            if (keys.down && player.y < canvas.height - 30) player.y += player.speed;
 
             const currentBounds = getRiverBounds(player.y);
             if (player.x < currentBounds.left || player.x + player.w > currentBounds.right) {
@@ -344,27 +321,36 @@
 
             // Atualiza Tiros
             for (let i = bullets.length - 1; i >= 0; i--) {
-                bullets[i].y -= 5;
+                bullets[i].y -= 6;
                 if (bullets[i].y < 0) bullets.splice(i, 1);
             }
 
             spawnEntity();
 
-            // Loop Reverso Seguro para evitar bugs no Array
+            // Atualiza Inimigos / Itens no Rio
             for (let i = entities.length - 1; i >= 0; i--) {
                 const e = entities[i];
-                e.y += scrollSpeed;
+                e.y += currentScrollSpeed;
                 e.x += e.vx;
 
                 const b = getRiverBounds(e.y);
                 if (e.x < b.left || e.x > b.right - 20) e.vx *= -1;
 
                 let destroyed = false;
+
+                // Colisão do Tiro com Obstáculos ou Fuel
                 for (let j = bullets.length - 1; j >= 0; j--) {
                     const bullet = bullets[j];
                     if (bullet.x >= e.x && bullet.x <= e.x + 22 &&
                         bullet.y >= e.y && bullet.y <= e.y + 18) {
-                        score += (e.type === 'FUEL') ? 50 : 100;
+                        
+                        if (e.type === 'FUEL') {
+                            fuel = Math.min(100, fuel + 35); // Coleta gasolina atirando!
+                            score += 50;
+                        } else {
+                            score += 100; // Destrói navio ou helicóptero
+                        }
+
                         bullets.splice(j, 1);
                         destroyed = true;
                         break;
@@ -376,14 +362,16 @@
                     continue;
                 }
 
-                // Colisão com Jogador
-                if (player.x < e.x + 20 && player.x + player.w > e.x &&
-                    player.y < e.y + 18 && player.y + player.h > e.y) {
+                // Colisão do Avião do Jogador com o Objeto
+                if (player.x < e.x + 18 && player.x + player.w > e.x &&
+                    player.y < e.y + 16 && player.y + player.h > e.y) {
+                    
                     if (e.type === 'FUEL') {
-                        fuel = Math.min(100, fuel + 35);
+                        fuel = Math.min(100, fuel + 35); // Coleta gasolina passando por cima!
+                        score += 50;
                         entities.splice(i, 1);
                     } else {
-                        gameOver = true;
+                        gameOver = true; // Bateu no navio ou helicóptero
                     }
                     continue;
                 }
@@ -397,7 +385,7 @@
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // Desenha Margens e Rio
+            // Rio e Margens
             for (let y = 0; y < canvas.height; y += 4) {
                 const bounds = getRiverBounds(y);
                 ctx.fillStyle = '#386641';
@@ -422,14 +410,12 @@
                 return;
             }
 
-            // Desenha Entidades
             entities.forEach(e => drawSprite(e.type, e.x, e.y));
 
-            // Desenha Tiros
             ctx.fillStyle = '#FACC15';
             bullets.forEach(b => ctx.fillRect(b.x, b.y, 2, 6));
 
-            // Desenha Jogador
+            // Desenha o Avião do Jogador
             drawSprite('PLAYER', player.x, player.y);
 
             // HUD
@@ -464,10 +450,9 @@
                 player.y = 210;
                 return;
             }
-            bullets.push({ x: player.x + 6, y: player.y });
+            bullets.push({ x: player.x + 8, y: player.y });
         }
 
-        // Teclado
         window.addEventListener('keydown', e => {
             if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = true;
             if (e.key === 'ArrowRight' || e.key === 'd') keys.right = true;
@@ -483,7 +468,6 @@
             if (e.key === 'ArrowDown' || e.key === 's') keys.down = false;
         });
 
-        // Controles de Toque/Clique nos Botões da Tela
         function bindButton(id, key) {
             const btn = document.getElementById(id);
             btn.addEventListener('mousedown', () => keys[key] = true);
