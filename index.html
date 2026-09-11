@@ -1,1 +1,629 @@
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"><title>Sky Raiders 8-Bit</title><link rel="stylesheet" href="style.css"></head><body><div id="game"><canvas id="screen" width="320" height="180"></canvas><div id="hud">FASE <b id="level">1</b>　 PONTOS <b id="score">0</b>　 VIDAS <b id="lives">3</b>　 <b id="biome">TROPICAL</b></div><div id="message"></div></div><script src="game.js"></script><div id="touch"><button id="left">◀</button><button id="fire">●</button><button id="right">▶</button></div></body></html>
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>River Raid 16-Bit Mobile</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        body {
+            background-color: #0d0e15;
+            color: #fff;
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            min-height: 100vh;
+            overflow: hidden;
+            touch-action: none; /* Evita rolar ou dar zoom no celular */
+        }
+        h1 {
+            margin-top: 8px;
+            color: #ffcc00;
+            text-shadow: 2px 2px #ff0055;
+            font-size: 18px;
+            letter-spacing: 1px;
+            text-align: center;
+        }
+        #game-container {
+            position: relative;
+            box-shadow: 0 0 20px rgba(0, 255, 204, 0.4);
+            border: 3px solid #334466;
+            border-radius: 6px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: auto 0;
+            background: #000;
+        }
+        canvas {
+            display: block;
+            background-color: #000;
+            image-rendering: pixelated;
+            width: 100%;
+            height: auto;
+            max-height: 60vh;
+        }
+
+        /* --- CONTROLES VIRTUAIS (TOUCH MOBILE) --- */
+        #touch-controls {
+            width: 100%;
+            max-width: 420px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 15px 15px 15px;
+            box-sizing: border-box;
+        }
+        .control-group {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .touch-btn {
+            background: linear-gradient(145deg, #2a3342, #141923);
+            color: #00ffcc;
+            border: 2px solid #334466;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: bold;
+            width: 52px;
+            height: 52px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 4px #080a0e;
+            cursor: pointer;
+        }
+        .touch-btn:active, .touch-btn.pressed {
+            background: #00ffcc;
+            color: #000;
+            border-color: #ffffff;
+            box-shadow: 0 0 #000;
+            transform: translateY(3px);
+        }
+        .action-btn {
+            background: linear-gradient(145deg, #ff0055, #990033);
+            border-color: #ff6699;
+            color: #fff;
+            width: 65px;
+            height: 65px;
+            border-radius: 50%;
+            font-size: 13px;
+        }
+        .action-btn:active, .action-btn.pressed {
+            background: #ff3300;
+            color: #fff;
+        }
+
+        .controls-hint {
+            font-size: 11px;
+            color: #888;
+            margin-bottom: 6px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>RIVER RAID 16-BIT</h1>
+
+    <div id="game-container">
+        <canvas id="gameCanvas" width="360" height="540"></canvas>
+    </div>
+
+    <!-- Controles virtuais na tela para celular -->
+    <div id="touch-controls">
+        <div class="control-group">
+            <div id="btn-left" class="touch-btn">◀</div>
+            <div id="btn-right" class="touch-btn">▶</div>
+        </div>
+        <div class="control-group">
+            <div id="btn-up" class="touch-btn" style="font-size: 12px;">▲<br>Acel</div>
+            <div id="btn-down" class="touch-btn" style="font-size: 12px;">▼<br>Freio</div>
+            <div id="btn-shoot" class="touch-btn action-btn">TIRO</div>
+        </div>
+    </div>
+
+    <div class="controls-hint">
+        Mobile: Toque nos botões | PC: Setas/WASD + Espaço
+    </div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+ctx.imageSmoothingEnabled = false;
+
+// --- SINTETIZADOR DE ÁUDIO RETRO ---
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+let audioCtx;
+
+function initAudio() {
+    if (!audioCtx) audioCtx = new AudioCtx();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+}
+
+function playSound(type) {
+    if (!audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    const now = audioCtx.currentTime;
+
+    if (type === 'shoot') {
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(600, now);
+        osc.frequency.exponentialRampToValueAtTime(120, now + 0.12);
+        gain.gain.setValueAtTime(0.15, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.12);
+        osc.start(now);
+        osc.stop(now + 0.12);
+    } else if (type === 'explosion') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(150, now);
+        osc.frequency.linearRampToValueAtTime(30, now + 0.3);
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.3);
+        osc.start(now);
+        osc.stop(now + 0.3);
+    } else if (type === 'fuel') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(300, now);
+        osc.frequency.linearRampToValueAtTime(800, now + 0.1);
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.1);
+        osc.start(now);
+        osc.stop(now + 0.1);
+    }
+}
+
+// --- ESTADO DO JOGO ---
+let gameState = 'START';
+let score = 0;
+let highScore = localStorage.getItem('rr16_highscore') || 0;
+let distance = 0;
+
+// --- JOGADOR ---
+const player = {
+    x: canvas.width / 2 - 12,
+    y: canvas.height - 80,
+    width: 24,
+    height: 28,
+    speedX: 3.5,
+    fuel: 100,
+    maxFuel: 100,
+    lastShootTime: 0
+};
+
+// --- CONTROLES (TECLADO + TOUCH VIRTUAL) ---
+const keys = {};
+
+window.addEventListener('keydown', e => {
+    initAudio();
+    keys[e.code] = true;
+    if ((gameState === 'START' || gameState === 'GAMEOVER') && e.code === 'Space') {
+        resetGame();
+        gameState = 'PLAYING';
+    }
+});
+window.addEventListener('keyup', e => keys[e.code] = false);
+
+// Suporte aos Botões Touch
+function setupTouchButton(elementId, keyCode) {
+    const btn = document.getElementById(elementId);
+    
+    const startPress = (e) => {
+        if (e.cancelable) e.preventDefault();
+        initAudio();
+        keys[keyCode] = true;
+        btn.classList.add('pressed');
+
+        if (gameState === 'START' || gameState === 'GAMEOVER') {
+            resetGame();
+            gameState = 'PLAYING';
+        }
+    };
+
+    const endPress = (e) => {
+        if (e.cancelable) e.preventDefault();
+        keys[keyCode] = false;
+        btn.classList.remove('pressed');
+    };
+
+    btn.addEventListener('touchstart', startPress, { passive: false });
+    btn.addEventListener('touchend', endPress, { passive: false });
+    btn.addEventListener('touchcancel', endPress, { passive: false });
+    btn.addEventListener('mousedown', startPress);
+    btn.addEventListener('mouseup', endPress);
+}
+
+setupTouchButton('btn-left', 'ArrowLeft');
+setupTouchButton('btn-right', 'ArrowRight');
+setupTouchButton('btn-up', 'ArrowUp');
+setupTouchButton('btn-down', 'ArrowDown');
+setupTouchButton('btn-shoot', 'Space');
+
+// Toque na tela para iniciar/reiniciar
+canvas.addEventListener('touchstart', (e) => {
+    initAudio();
+    if (gameState === 'START' || gameState === 'GAMEOVER') {
+        resetGame();
+        gameState = 'PLAYING';
+    }
+});
+
+// --- RIO E TERRENO ---
+const sliceHeight = 10;
+const totalSlices = Math.ceil(canvas.height / sliceHeight) + 2;
+let riverSlices = [];
+let noiseSeed = Math.random() * 100;
+
+function generateInitialRiver() {
+    riverSlices = [];
+    for (let i = 0; i < totalSlices; i++) {
+        riverSlices.push(createRiverSlice(i * sliceHeight));
+    }
+}
+
+function createRiverSlice(y) {
+    const center = canvas.width / 2 + Math.sin((distance + y) * 0.008 + noiseSeed) * 70;
+    const width = 160 + Math.sin((distance + y) * 0.004) * 30;
+    return {
+        y: y,
+        left: Math.max(20, center - width / 2),
+        right: Math.min(canvas.width - 20, center + width / 2)
+    };
+}
+
+// --- ENTIDADES ---
+let bullets = [];
+let enemies = [];
+let fuelTanks = [];
+let explosions = [];
+
+function spawnEntities() {
+    if (Math.random() < 0.035) {
+        const topSlice = riverSlices[0];
+        const minX = topSlice.left + 15;
+        const maxX = topSlice.right - 35;
+        if (maxX > minX) {
+            const x = minX + Math.random() * (maxX - minX);
+            const rand = Math.random();
+            if (rand < 0.4) {
+                enemies.push({ x, y: -30, width: 22, height: 20, type: 'ship', speedX: 1, dir: Math.random() > 0.5 ? 1 : -1 });
+            } else if (rand < 0.7) {
+                enemies.push({ x, y: -30, width: 20, height: 20, type: 'heli', speedX: 1.8, dir: Math.random() > 0.5 ? 1 : -1 });
+            } else {
+                fuelTanks.push({ x, y: -30, width: 20, height: 26 });
+            }
+        }
+    }
+}
+
+// --- ATUALIZAÇÃO ---
+function update() {
+    if (gameState !== 'PLAYING') return;
+
+    // Velocidade de rolamento
+    let scrollSpeed = 2.5;
+    if (keys['KeyW'] || keys['ArrowUp']) scrollSpeed = 4.5;
+    if (keys['KeyS'] || keys['ArrowDown']) scrollSpeed = 1.2;
+
+    distance += scrollSpeed;
+
+    // Consumo de Combustível
+    player.fuel -= 0.06 * (scrollSpeed / 2.5);
+    if (player.fuel <= 0) {
+        playerExplode();
+        return;
+    }
+
+    // Movimento do Jogador
+    if (keys['KeyA'] || keys['ArrowLeft']) player.x -= player.speedX;
+    if (keys['KeyD'] || keys['ArrowRight']) player.x += player.speedX;
+
+    // Disparo
+    const now = Date.now();
+    if (keys['Space'] && now - player.lastShootTime > 180) {
+        bullets.push({ x: player.x + player.width / 2 - 2, y: player.y, width: 4, height: 10 });
+        playSound('shoot');
+        player.lastShootTime = now;
+    }
+
+    // Atualizar Rio
+    for (let slice of riverSlices) {
+        slice.y += scrollSpeed;
+    }
+    if (riverSlices[riverSlices.length - 1].y >= canvas.height) {
+        riverSlices.pop();
+        const newY = riverSlices[0].y - sliceHeight;
+        riverSlices.unshift(createRiverSlice(newY));
+    }
+
+    // Colisão Margens
+    const playerSlice = riverSlices.find(s => player.y >= s.y && player.y < s.y + sliceHeight);
+    if (playerSlice) {
+        if (player.x < playerSlice.left || player.x + player.width > playerSlice.right) {
+            playerExplode();
+            return;
+        }
+    }
+
+    // Balas
+    for (let i = bullets.length - 1; i >= 0; i--) {
+        bullets[i].y -= 7;
+        if (bullets[i].y < -10) bullets.splice(i, 1);
+    }
+
+    spawnEntities();
+
+    // Inimigos
+    for (let i = enemies.length - 1; i >= 0; i--) {
+        let e = enemies[i];
+        e.y += scrollSpeed;
+        e.x += e.speedX * e.dir;
+
+        const eSlice = riverSlices.find(s => e.y >= s.y && e.y < s.y + sliceHeight);
+        if (eSlice) {
+            if (e.x <= eSlice.left || e.x + e.width >= eSlice.right) {
+                e.dir *= -1;
+            }
+        }
+
+        // Colisão Bala x Inimigo
+        for (let j = bullets.length - 1; j >= 0; j--) {
+            let b = bullets[j];
+            if (checkCollision(b, e)) {
+                createExplosion(e.x + e.width/2, e.y + e.height/2);
+                playSound('explosion');
+                score += e.type === 'heli' ? 60 : 30;
+                enemies.splice(i, 1);
+                bullets.splice(j, 1);
+                break;
+            }
+        }
+
+        // Colisão Jogador x Inimigo
+        if (enemies[i] && checkCollision(player, e)) {
+            playerExplode();
+            return;
+        }
+
+        if (e && e.y > canvas.height + 40) enemies.splice(i, 1);
+    }
+
+    // Tanques de Combustível
+    for (let i = fuelTanks.length - 1; i >= 0; i--) {
+        let f = fuelTanks[i];
+        f.y += scrollSpeed;
+
+        if (checkCollision(player, f)) {
+            player.fuel = Math.min(player.maxFuel, player.fuel + 0.8);
+            playSound('fuel');
+        }
+
+        for (let j = bullets.length - 1; j >= 0; j--) {
+            let b = bullets[j];
+            if (checkCollision(b, f)) {
+                createExplosion(f.x + f.width/2, f.y + f.height/2);
+                playSound('explosion');
+                score += 80;
+                fuelTanks.splice(i, 1);
+                bullets.splice(j, 1);
+                break;
+            }
+        }
+
+        if (fuelTanks[i] && f.y > canvas.height + 40) fuelTanks.splice(i, 1);
+    }
+
+    // Explosões
+    for (let i = explosions.length - 1; i >= 0; i--) {
+        let p = explosions[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life -= 0.05;
+        if (p.life <= 0) explosions.splice(i, 1);
+    }
+}
+
+function checkCollision(a, b) {
+    return a.x < b.x + b.width &&
+           a.x + a.width > b.x &&
+           a.y < b.y + b.height &&
+           a.y + a.height > b.y;
+}
+
+function createExplosion(x, y) {
+    for (let i = 0; i < 15; i++) {
+        explosions.push({
+            x: x, y: y,
+            vx: (Math.random() - 0.5) * 6,
+            vy: (Math.random() - 0.5) * 6,
+            color: ['#ff0055', '#ffcc00', '#ffffff', '#ff6600'][Math.floor(Math.random() * 4)],
+            size: Math.random() * 4 + 2,
+            life: 1.0
+        });
+    }
+}
+
+function playerExplode() {
+    createExplosion(player.x + player.width / 2, player.y + player.height / 2);
+    playSound('explosion');
+    gameState = 'GAMEOVER';
+    if (score > highScore) {
+        highScore = score;
+        localStorage.setItem('rr16_highscore', highScore);
+    }
+}
+
+function resetGame() {
+    score = 0;
+    distance = 0;
+    player.fuel = 100;
+    player.x = canvas.width / 2 - 12;
+    bullets = [];
+    enemies = [];
+    fuelTanks = [];
+    explosions = [];
+    noiseSeed = Math.random() * 100;
+    generateInitialRiver();
+}
+
+// --- RENDERIZAÇÃO ---
+function draw() {
+    ctx.fillStyle = '#1e5d22';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Rio
+    ctx.fillStyle = '#0066cc';
+    for (let i = 0; i < riverSlices.length; i++) {
+        let s = riverSlices[i];
+        ctx.fillRect(s.left, s.y, s.right - s.left, sliceHeight + 1);
+        ctx.fillStyle = '#339933';
+        ctx.fillRect(s.left - 4, s.y, 4, sliceHeight + 1);
+        ctx.fillRect(s.right, s.y, 4, sliceHeight + 1);
+        ctx.fillStyle = '#0066cc';
+    }
+
+    // Ondas
+    ctx.fillStyle = '#3399ff';
+    for (let i = 0; i < canvas.height; i += 40) {
+        let y = (i + distance) % canvas.height;
+        ctx.fillRect(canvas.width / 2 - 20, y, 12, 2);
+        ctx.fillRect(canvas.width / 2 + 30, (y + 20) % canvas.height, 8, 2);
+    }
+
+    // Tanques FUEL
+    for (let f of fuelTanks) {
+        ctx.fillStyle = '#ff2200';
+        ctx.fillRect(f.x, f.y, f.width, f.height);
+        ctx.fillStyle = '#ffcc00';
+        ctx.fillRect(f.x + 2, f.y + 2, f.width - 4, f.height - 4);
+        ctx.fillStyle = '#000';
+        ctx.font = 'bold 9px monospace';
+        ctx.fillText('FUEL', f.x + 1, f.y + 16);
+    }
+
+    // Inimigos
+    for (let e of enemies) {
+        if (e.type === 'ship') {
+            ctx.fillStyle = '#8899a6';
+            ctx.fillRect(e.x, e.y + 4, e.width, e.height - 8);
+            ctx.fillStyle = '#cc0000';
+            ctx.fillRect(e.x + 4, e.y, e.width - 8, e.height);
+        } else {
+            ctx.fillStyle = '#ffaa00';
+            ctx.fillRect(e.x + 4, e.y + 4, e.width - 8, e.height - 6);
+            ctx.fillStyle = '#111';
+            if (Math.floor(Date.now() / 50) % 2 === 0) {
+                ctx.fillRect(e.x - 2, e.y + 2, e.width + 4, 2);
+            } else {
+                ctx.fillRect(e.x + e.width/2 - 1, e.y - 3, 2, e.height + 4);
+            }
+        }
+    }
+
+    // Balas
+    ctx.fillStyle = '#ffff00';
+    for (let b of bullets) {
+        ctx.fillRect(b.x, b.y, b.width, b.height);
+    }
+
+    // Explosões
+    for (let p of explosions) {
+        ctx.fillStyle = p.color;
+        ctx.fillRect(p.x, p.y, p.size, p.size);
+    }
+
+    // Caça
+    if (gameState === 'PLAYING') {
+        let x = player.x;
+        let y = player.y;
+
+        ctx.fillStyle = '#dddddd';
+        ctx.fillRect(x, y + 12, 24, 8);
+        ctx.fillStyle = '#ff0044';
+        ctx.fillRect(x + 9, y, 6, 26);
+        ctx.fillStyle = '#ffff00';
+        ctx.fillRect(x + 10, y - 3, 4, 3);
+        ctx.fillStyle = '#00ffff';
+        ctx.fillRect(x + 10, y + 6, 4, 6);
+        ctx.fillStyle = Math.random() > 0.5 ? '#ff9900' : '#ff0000';
+        ctx.fillRect(x + 10, y + 26, 4, 5);
+    }
+
+    // HUD
+    ctx.fillStyle = '#111122';
+    ctx.fillRect(0, canvas.height - 35, canvas.width, 35);
+    ctx.strokeStyle = '#334466';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(0, canvas.height - 35, canvas.width, 35);
+
+    // Barra Fuel
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 10px monospace';
+    ctx.fillText('FUEL', 12, canvas.height - 14);
+
+    ctx.fillStyle = '#333';
+    ctx.fillRect(45, canvas.height - 22, 100, 10);
+
+    let fuelColor = '#00ffcc';
+    if (player.fuel < 30) fuelColor = '#ff0055';
+    else if (player.fuel < 60) fuelColor = '#ffcc00';
+
+    ctx.fillStyle = fuelColor;
+    ctx.fillRect(45, canvas.height - 22, Math.max(0, player.fuel), 10);
+
+    // Score
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 12px monospace';
+    ctx.fillText(`SCORE: ${score}`, 160, canvas.height - 12);
+    ctx.fillText(`HI: ${highScore}`, 275, canvas.height - 12);
+
+    // Overlays
+    if (gameState === 'START') {
+        drawOverlay('RIVER RAID 16-BIT', 'Toque ou Pressione ESPAÇO');
+    } else if (gameState === 'GAMEOVER') {
+        drawOverlay('FIM DE JOGO', 'Toque para Reiniciar');
+    }
+}
+
+function drawOverlay(title, subtitle) {
+    ctx.fillStyle = 'rgba(10, 15, 30, 0.85)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.fillStyle = '#ffcc00';
+    ctx.font = 'bold 20px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(title, canvas.width / 2, canvas.height / 2 - 20);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '12px monospace';
+    ctx.fillText(subtitle, canvas.width / 2, canvas.height / 2 + 20);
+    ctx.textAlign = 'left';
+}
+
+// Loop
+generateInitialRiver();
+function gameLoop() {
+    update();
+    draw();
+    requestAnimationFrame(gameLoop);
+}
+requestAnimationFrame(gameLoop);
+
+</script>
+</body>
+</html>
