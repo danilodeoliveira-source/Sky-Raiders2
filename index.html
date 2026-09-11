@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>River Raid Retro Console</title>
     <style>
         * {
@@ -11,6 +11,7 @@
             padding: 0;
             user-select: none;
             -webkit-user-select: none;
+            touch-action: manipulation;
         }
 
         body {
@@ -20,6 +21,7 @@
             align-items: center;
             min-height: 100vh;
             font-family: monospace, sans-serif;
+            overflow: hidden;
         }
 
         #console {
@@ -80,31 +82,119 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 10px 5px;
+            padding: 5px;
         }
 
-        .dpad {
-            display: grid;
-            grid-template-columns: 28px 28px 28px;
-            grid-template-rows: 28px 28px 28px;
-            width: 84px;
-            height: 84px;
-        }
-
-        .dpad-btn {
-            background-color: #45475a;
-            border: 1px solid #313244;
+        /* ----- JOYSTICK 8-BIT ESTILO ARCADE ----- */
+        .joystick-base {
+            width: 96px;
+            height: 96px;
+            background-color: #000000;
+            border: 3px solid #111;
+            border-radius: 4px;
+            position: relative;
+            touch-action: none;
             cursor: pointer;
+            box-shadow: inset 0 0 0 2px #222;
         }
 
-        .dpad-btn:active { background-color: #585b70; }
+        /* Parafusos nos cantos */
+        .screw {
+            width: 4px;
+            height: 4px;
+            background-color: #e2e8f0;
+            position: absolute;
+            box-shadow: 0 0 1px #000;
+        }
+        .screw-tl { top: 4px; left: 4px; }
+        .screw-tr { top: 4px; right: 4px; }
+        .screw-bl { bottom: 20px; left: 4px; }
+        .screw-br { bottom: 20px; right: 4px; }
 
-        .dpad-up { grid-column: 2; grid-row: 1; border-radius: 6px 6px 0 0; }
-        .dpad-left { grid-column: 1; grid-row: 2; border-radius: 6px 0 0 6px; }
-        .dpad-center { grid-column: 2; grid-row: 2; background-color: #45475a; }
-        .dpad-right { grid-column: 3; grid-row: 2; border-radius: 0 6px 6px 0; }
-        .dpad-down { grid-column: 2; grid-row: 3; border-radius: 0 0 6px 6px; }
+        /* Barra inferior cinza do painel arcade */
+        .joystick-panel-bottom {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 16px;
+            background-color: #4b5563;
+            border-top: 3px solid #1f2937;
+        }
 
+        /* Guia octogonal do centro */
+        .joystick-gate {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 32px;
+            height: 32px;
+            transform: translate(-50%, -60%);
+            background: #6b7280;
+            clip-path: polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .joystick-gate-inner {
+            width: 20px;
+            height: 20px;
+            background: #1f2937;
+            clip-path: polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%);
+        }
+
+        /* Haste e Bola Vermelha */
+        #joystick-knob {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 40px;
+            height: 60px;
+            margin-top: -42px;
+            margin-left: -20px;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: transform 0.05s ease-out;
+            will-change: transform;
+        }
+
+        /* Esfera vermelha pixelada */
+        .knob-ball {
+            width: 34px;
+            height: 34px;
+            background-color: #dc2626;
+            border-radius: 50%;
+            border: 2px solid #7f1d1d;
+            box-shadow: inset -4px -4px 0 #991b1b, inset 4px 4px 0 #ef4444;
+            position: relative;
+            z-index: 2;
+        }
+
+        .knob-ball::after {
+            content: '';
+            position: absolute;
+            top: 6px;
+            left: 6px;
+            width: 8px;
+            height: 8px;
+            background-color: #f87171;
+            border-radius: 50%;
+        }
+
+        /* Haste prateada */
+        .knob-shaft {
+            width: 12px;
+            height: 22px;
+            background: linear-gradient(90deg, #9ca3af 0%, #e5e7eb 50%, #6b7280 100%);
+            border: 2px solid #374151;
+            margin-top: -4px;
+            z-index: 1;
+        }
+
+        /* Botões de Ação */
         .action-buttons {
             display: flex;
             gap: 12px;
@@ -123,6 +213,7 @@
             justify-content: center;
             align-items: center;
             box-shadow: 0 4px 0 rgba(0, 0, 0, 0.5);
+            touch-action: manipulation;
         }
 
         .btn:active {
@@ -161,12 +252,22 @@
         </div>
 
         <div class="controls">
-            <div class="dpad">
-                <button class="dpad-btn dpad-up" id="btn-up"></button>
-                <button class="dpad-btn dpad-left" id="btn-left"></button>
-                <div class="dpad-center"></div>
-                <button class="dpad-btn dpad-right" id="btn-right"></button>
-                <button class="dpad-btn dpad-down" id="btn-down"></button>
+            <!-- Joystick Arcade 8-Bit -->
+            <div class="joystick-base" id="joystick-base">
+                <div class="screw screw-tl"></div>
+                <div class="screw screw-tr"></div>
+                <div class="screw screw-bl"></div>
+                <div class="screw screw-br"></div>
+                <div class="joystick-panel-bottom"></div>
+                
+                <div class="joystick-gate">
+                    <div class="joystick-gate-inner"></div>
+                </div>
+
+                <div id="joystick-knob">
+                    <div class="knob-ball"></div>
+                    <div class="knob-shaft"></div>
+                </div>
             </div>
 
             <div class="action-buttons">
@@ -308,8 +409,7 @@
         }
 
         function spawnEntity() {
-            // Aumentada a probabilidade de spawn por frame para criar mais inimigos
-            if (Math.random() < 0.035) {
+            if (Math.random() < 0.045) {
                 const types = ['HELI', 'SHIP', 'FUEL'];
                 const type = types[Math.floor(Math.random() * types.length)];
                 const sprWidth = SPRITES[type].width;
@@ -490,12 +590,78 @@
             requestAnimationFrame(gameLoop);
         }
 
+        /* ----- CONTROLE DO JOYSTICK VIRTUAL ----- */
+        const joyBase = document.getElementById('joystick-base');
+        const joyKnob = document.getElementById('joystick-knob');
+        let isDragging = false;
+
+        function updateJoystick(clientX, clientY) {
+            const rect = joyBase.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + (rect.height / 2) - 10;
+
+            let dx = clientX - centerX;
+            let dy = clientY - centerY;
+
+            const maxDistance = 22;
+            const distance = Math.hypot(dx, dy);
+
+            if (distance > maxDistance) {
+                dx = (dx / distance) * maxDistance;
+                dy = (dy / distance) * maxDistance;
+            }
+
+            joyKnob.style.transform = `translate(${dx}px, ${dy}px)`;
+
+            const threshold = 6;
+            keys.left = dx < -threshold;
+            keys.right = dx > threshold;
+            keys.up = dy < -threshold;
+            keys.down = dy > threshold;
+        }
+
+        function resetJoystick() {
+            isDragging = false;
+            joyKnob.style.transform = 'translate(0px, 0px)';
+            keys.left = false;
+            keys.right = false;
+            keys.up = false;
+            keys.down = false;
+        }
+
+        // Eventos de Toque (Mobile)
+        joyBase.addEventListener('touchstart', e => {
+            e.preventDefault();
+            isDragging = true;
+            updateJoystick(e.touches[0].clientX, e.touches[0].clientY);
+        }, { passive: false });
+
+        window.addEventListener('touchmove', e => {
+            if (isDragging && e.touches.length > 0) {
+                updateJoystick(e.touches[0].clientX, e.touches[0].clientY);
+            }
+        }, { passive: false });
+
+        window.addEventListener('touchend', resetJoystick);
+        window.addEventListener('touchcancel', resetJoystick);
+
+        // Eventos de Mouse (Desktop)
+        joyBase.addEventListener('mousedown', e => {
+            isDragging = true;
+            updateJoystick(e.clientX, e.clientY);
+        });
+
+        window.addEventListener('mousemove', e => {
+            if (isDragging) updateJoystick(e.clientX, e.clientY);
+        });
+
+        window.addEventListener('mouseup', resetJoystick);
+
+        /* ----- SUPORTE AO TECLADO ----- */
         window.addEventListener('keydown', e => {
-            if (gameOver) {
-                if (e.key === ' ' || e.key === 'Enter') {
-                    resetGame();
-                    return;
-                }
+            if (gameOver && (e.key === ' ' || e.key === 'Enter')) {
+                resetGame();
+                return;
             }
             if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = true;
             if (e.key === 'ArrowRight' || e.key === 'd') keys.right = true;
@@ -512,35 +678,25 @@
             if (e.key === ' ' || e.key === 'j') keys.shoot = false;
         });
 
-        function bindButton(id, key) {
-            const btn = document.getElementById(id);
-            btn.addEventListener('mousedown', () => { if (!gameOver) keys[key] = true; });
-            btn.addEventListener('mouseup', () => keys[key] = false);
-            btn.addEventListener('mouseleave', () => keys[key] = false);
-            btn.addEventListener('touchstart', e => { e.preventDefault(); if (!gameOver) keys[key] = true; });
-            btn.addEventListener('touchend', e => { e.preventDefault(); keys[key] = false; });
-        }
-
+        /* ----- BOTÕES DE AÇÃO ----- */
         function bindActionButton(id) {
             const btn = document.getElementById(id);
-            btn.addEventListener('mousedown', () => { 
+            const startShoot = (e) => {
+                e.preventDefault();
                 if (gameOver) resetGame();
-                else keys.shoot = true; 
-            });
-            btn.addEventListener('mouseup', () => keys.shoot = false);
-            btn.addEventListener('mouseleave', () => keys.shoot = false);
-            btn.addEventListener('touchstart', e => { 
-                e.preventDefault(); 
-                if (gameOver) resetGame();
-                else keys.shoot = true; 
-            });
-            btn.addEventListener('touchend', e => { e.preventDefault(); keys.shoot = false; });
-        }
+                else keys.shoot = true;
+            };
+            const stopShoot = (e) => {
+                e.preventDefault();
+                keys.shoot = false;
+            };
 
-        bindButton('btn-up', 'up');
-        bindButton('btn-down', 'down');
-        bindButton('btn-left', 'left');
-        bindButton('btn-right', 'right');
+            btn.addEventListener('mousedown', startShoot);
+            btn.addEventListener('mouseup', stopShoot);
+            btn.addEventListener('mouseleave', stopShoot);
+            btn.addEventListener('touchstart', startShoot, { passive: false });
+            btn.addEventListener('touchend', stopShoot, { passive: false });
+        }
 
         bindActionButton('btn-a');
         bindActionButton('btn-b');
