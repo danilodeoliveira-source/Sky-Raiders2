@@ -276,9 +276,11 @@
         let entities = [];
         const keys = { up: false, down: false, left: false, right: false };
 
-        function getRiverBounds(y) {
-            const center = 110 + Math.sin((y + riverOffset) * 0.015) * 35;
-            const width = 100 + Math.cos((y + riverOffset) * 0.01) * 20;
+        // Calcula as bordas do rio com base no ponto Y relativo do mundo
+        function getRiverBounds(screenY) {
+            const worldY = screenY - riverOffset;
+            const center = 110 + Math.sin(worldY * 0.015) * 35;
+            const width = 100 + Math.cos(worldY * 0.01) * 20;
             return { left: center - width / 2, right: center + width / 2 };
         }
 
@@ -287,9 +289,10 @@
                 const types = ['HELI', 'SHIP', 'FUEL'];
                 const type = types[Math.floor(Math.random() * types.length)];
                 const sprWidth = SPRITES[type].width;
-                const bounds = getRiverBounds(-30);
                 
-                // Spawna estritamente dentro da água
+                const spawnScreenY = -30;
+                const bounds = getRiverBounds(spawnScreenY);
+                
                 const minX = bounds.left + 4;
                 const maxX = bounds.right - sprWidth - 4;
 
@@ -298,10 +301,12 @@
                     entities.push({
                         type,
                         x,
-                        y: -30,
+                        // Posição estática no mundo
+                        worldY: spawnScreenY - riverOffset,
                         w: sprWidth,
-                        // Patrulha apenas de um lado pro outro na água
-                        vx: (type === 'HELI' || type === 'SHIP') ? (Math.random() > 0.5 ? 0.5 : -0.5) : 0
+                        // Movimento estritamente HORIZONTAL (alguns fixos, outros patrulham)
+                        vx: (type === 'HELI') ? (Math.random() > 0.5 ? 0.6 : -0.6) :
+                            (type === 'SHIP') ? (Math.random() > 0.5 ? 0.3 : -0.3) : 0
                     });
                 }
             }
@@ -310,7 +315,6 @@
         function update() {
             if (gameOver) return;
 
-            // Velocidade de avanço do avião
             let currentScrollSpeed = baseScrollSpeed;
             if (keys.up) currentScrollSpeed = 2.4;
             if (keys.down) currentScrollSpeed = 0.6;
@@ -321,19 +325,19 @@
                 return;
             }
 
-            // O cenario rola conforme você avança
+            // O avanço do avião rola o cenário
             riverOffset += currentScrollSpeed;
 
             if (keys.left) player.x -= player.speed;
             if (keys.right) player.x += player.speed;
 
-            // Morte se o jogador colidir com a margem do rio
+            // Colisão com a margem
             const currentBounds = getRiverBounds(player.y);
             if (player.x < currentBounds.left || player.x + player.w > currentBounds.right) {
                 gameOver = true;
             }
 
-            // Tiros
+            // Atualiza tiros
             for (let i = bullets.length - 1; i >= 0; i--) {
                 bullets[i].y -= 6;
                 if (bullets[i].y < 0) bullets.splice(i, 1);
@@ -341,40 +345,42 @@
 
             spawnEntity();
 
-            // Processa Entidades no Rio
+            // Atualiza elementos no rio
             for (let i = entities.length - 1; i >= 0; i--) {
                 const e = entities[i];
                 
-                // Entidades ficam no rio (descem apenas com a rolagem do cenário)
-                e.y += currentScrollSpeed;
+                // Posição Y na tela calculada a partir do avanço do rio
+                const screenY = e.worldY + riverOffset;
+                
+                // Movimento puramente HORIZONTAL
                 e.x += e.vx;
 
-                // Restrição Absoluta: MANTÉM OS BICHOS DENTRO DA ÁGUA
-                const b = getRiverBounds(e.y);
+                // Contenção lateral dentro da água
+                const b = getRiverBounds(screenY);
                 const minX = b.left + 2;
                 const maxX = b.right - e.w - 2;
 
                 if (e.x < minX) {
                     e.x = minX;
-                    e.vx = Math.abs(e.vx); // Rebate para a direita
+                    e.vx = Math.abs(e.vx);
                 } else if (e.x > maxX) {
                     e.x = maxX;
-                    e.vx = -Math.abs(e.vx); // Rebate para a esquerda
+                    e.vx = -Math.abs(e.vx);
                 }
 
                 let destroyed = false;
 
-                // Colisão Tiro x Entidade
+                // Colisão Tiro x Inimigo
                 for (let j = bullets.length - 1; j >= 0; j--) {
                     const bullet = bullets[j];
                     if (bullet.x >= e.x && bullet.x <= e.x + e.w &&
-                        bullet.y >= e.y && bullet.y <= e.y + 18) {
+                        bullet.y >= screenY && bullet.y <= screenY + 18) {
                         
                         if (e.type === 'FUEL') {
-                            fuel = Math.min(100, fuel + 35); // Coleta atirando no FUEL
+                            fuel = Math.min(100, fuel + 35);
                             score += 50;
                         } else {
-                            score += 100; // Destrói navio ou helicóptero
+                            score += 100;
                         }
 
                         bullets.splice(j, 1);
@@ -388,21 +394,21 @@
                     continue;
                 }
 
-                // Colisão Avião x Entidade
+                // Colisão Jogador x Inimigo/Combustível
                 if (player.x < e.x + e.w && player.x + player.w > e.x &&
-                    player.y < e.y + 16 && player.y + player.h > e.y) {
+                    player.y < screenY + 16 && player.y + player.h > screenY) {
                     
                     if (e.type === 'FUEL') {
-                        fuel = Math.min(100, fuel + 35); // Coleta passando por cima
+                        fuel = Math.min(100, fuel + 35);
                         score += 50;
                         entities.splice(i, 1);
                     } else {
-                        gameOver = true; // Bateu no navio ou helicóptero
+                        gameOver = true;
                     }
                     continue;
                 }
 
-                if (e.y > canvas.height + 40) {
+                if (screenY > canvas.height + 40) {
                     entities.splice(i, 1);
                 }
             }
@@ -411,7 +417,7 @@
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // Renderiza o Rio e a Terra
+            // Desenha Rio e Terreno
             for (let y = 0; y < canvas.height; y += 4) {
                 const bounds = getRiverBounds(y);
                 ctx.fillStyle = '#386641';
@@ -436,14 +442,17 @@
                 return;
             }
 
-            // Desenha itens/inimigos
-            entities.forEach(e => drawSprite(e.type, e.x, e.y));
+            // Desenha os elementos nos seus pontos fixos no leito do rio
+            entities.forEach(e => {
+                const screenY = e.worldY + riverOffset;
+                drawSprite(e.type, e.x, screenY);
+            });
 
-            // Desenha tiros
+            // Tiros
             ctx.fillStyle = '#FACC15';
             bullets.forEach(b => ctx.fillRect(b.x, b.y, 2, 6));
 
-            // Desenha Avião do Jogador
+            // Avião
             drawSprite('PLAYER', player.x, player.y);
 
             // HUD
