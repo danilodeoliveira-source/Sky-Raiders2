@@ -2,8 +2,8 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Jogo Retro 16-bit Mobile</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>River Raid 16-Bit Edition</title>
   <style>
     * {
       box-sizing: border-box;
@@ -14,217 +14,297 @@
     }
 
     body {
-      background-color: #111;
+      background-color: #0d0d11;
       color: #fff;
       font-family: monospace;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      height: 100vh;
+      min-height: 100vh;
       overflow: hidden;
     }
 
+    #game-wrapper {
+      width: 100%;
+      max-width: 420px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+      border-radius: 12px;
+      overflow: hidden;
+      border: 4px solid #2a2a35;
+      background-color: #181820;
+    }
+
     /* Tela de Jogo */
-    #game-container {
+    #canvas-container {
       position: relative;
       width: 100%;
-      max-width: 480px;
       height: 60vh;
-      background-color: #0088ff; /* Cor da água/fundo */
-      border: 4px solid #333;
-      box-shadow: 0 0 15px rgba(0,0,0,0.8);
+      max-height: 500px;
+      background-color: #000;
     }
 
     canvas {
       width: 100%;
       height: 100%;
-      image-rendering: pixelated; /* Mantém a estética 16-bit afiada */
+      display: block;
+      image-rendering: pixelated;
       image-rendering: crisp-edges;
     }
 
-    /* Painel de Controles Mobile 16-bit */
+    /* Controls Mobile 16-bit */
     #mobile-controls {
       width: 100%;
-      max-width: 480px;
-      height: 35vh;
-      background-color: #22222b;
-      border: 4px solid #444455;
-      border-top: none;
+      height: 38vh;
+      max-height: 220px;
+      background: linear-gradient(180deg, #282834 0%, #1a1a24 100%);
+      border-top: 4px solid #3a3a4c;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 20px;
+      padding: 15px 25px;
     }
 
-    /* D-PAD Retro (Direcionais) */
+    /* D-PAD Retro */
     .d-pad {
       position: relative;
-      width: 120px;
-      height: 120px;
+      width: 130px;
+      height: 130px;
     }
 
     .d-btn {
       position: absolute;
-      background-color: #3a3a48;
-      border: 3px solid #1a1a24;
-      box-shadow: inset 2px 2px 0 #5a5a6e, inset -2px -2px 0 #000;
-      active-background-color: #2a2a38;
+      background-color: #383848;
+      border: 2px solid #121218;
+      box-shadow: inset 2px 2px 0 #58586a, inset -2px -2px 0 #181820;
+      touch-action: manipulation;
     }
 
     .d-btn:active, .d-btn.active {
-      background-color: #1e1e28;
-      box-shadow: inset -2px -2px 0 #5a5a6e, inset 2px 2px 0 #000;
+      background-color: #22222c;
+      box-shadow: inset -2px -2px 0 #48485a, inset 2px 2px 0 #101014;
     }
 
-    .d-up    { top: 0; left: 40px; width: 40px; height: 45px; border-radius: 6px 6px 0 0; }
-    .d-down  { bottom: 0; left: 40px; width: 40px; height: 45px; border-radius: 0 0 6px 6px; }
-    .d-left  { top: 40px; left: 0; width: 45px; height: 40px; border-radius: 6px 0 0 6px; }
-    .d-right { top: 40px; right: 0; width: 45px; height: 40px; border-radius: 0 6px 6px 0; }
-    .d-center { top: 40px; left: 40px; width: 40px; height: 40px; background-color: #3a3a48; }
+    .d-up    { top: 0; left: 43px; width: 44px; height: 48px; border-radius: 6px 6px 0 0; }
+    .d-down  { bottom: 0; left: 43px; width: 44px; height: 48px; border-radius: 0 0 6px 6px; }
+    .d-left  { top: 43px; left: 0; width: 48px; height: 44px; border-radius: 6px 0 0 6px; }
+    .d-right { top: 43px; right: 0; width: 48px; height: 44px; border-radius: 0 6px 6px 0; }
+    .d-center { top: 43px; left: 43px; width: 44px; height: 44px; background-color: #383848; border: none; }
 
-    /* Botões de Ação 16-bit (A / B) */
-    .action-buttons {
+    /* Botões A/B */
+    .action-group {
       display: flex;
-      gap: 15px;
-      transform: rotate(-15deg); /* Inclinação clássica estilo SNES */
+      gap: 16px;
+      transform: rotate(-12deg);
     }
 
     .btn-action {
-      width: 55px;
-      height: 55px;
+      width: 58px;
+      height: 58px;
       border-radius: 50%;
-      border: 3px solid #1a1a24;
+      border: 3px solid #121218;
       color: #fff;
       font-weight: bold;
-      font-size: 18px;
+      font-size: 20px;
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: inset 3px 3px 0 rgba(255,255,255,0.4), inset -3px -3px 0 rgba(0,0,0,0.6);
+      box-shadow: inset 3px 3px 0 rgba(255,255,255,0.35), inset -3px -3px 0 rgba(0,0,0,0.6), 0 4px 8px rgba(0,0,0,0.4);
+      touch-action: manipulation;
     }
 
-    .btn-a { background-color: #cc2222; } /* Botão A Vermelho */
-    .btn-b { background-color: #eedd00; color: #111; } /* Botão B Amarelo */
+    .btn-a { background-color: #d32f2f; }
+    .btn-b { background-color: #fbc02d; color: #1a1a1a; }
 
     .btn-action:active, .btn-action.active {
-      transform: scale(0.95);
-      box-shadow: inset -3px -3px 0 rgba(255,255,255,0.4), inset 3px 3px 0 rgba(0,0,0,0.6);
+      transform: scale(0.94);
+      box-shadow: inset -2px -2px 0 rgba(255,255,255,0.3), inset 3px 3px 0 rgba(0,0,0,0.7);
     }
   </style>
 </head>
 <body>
 
-  <div id="game-container">
-    <canvas id="gameCanvas" width="320" height="400"></canvas>
-  </div>
-
-  <!-- Controles Mobile -->
-  <div id="mobile-controls">
-    <!-- D-PAD -->
-    <div class="d-pad">
-      <div class="d-btn d-up" id="btn-up"></div>
-      <div class="d-btn d-left" id="btn-left"></div>
-      <div class="d-btn d-center"></div>
-      <div class="d-btn d-right" id="btn-right"></div>
-      <div class="d-btn d-down" id="btn-down"></div>
+  <div id="game-wrapper">
+    <div id="canvas-container">
+      <canvas id="gameCanvas" width="320" height="480"></canvas>
     </div>
 
-    <!-- Botões de Ação -->
-    <div class="action-buttons">
-      <div class="btn-action btn-b" id="btn-b">B</div>
-      <div class="btn-action btn-a" id="btn-a">A</div>
+    <!-- Controles Mobile -->
+    <div id="mobile-controls">
+      <div class="d-pad">
+        <div class="d-btn d-up" id="btn-up"></div>
+        <div class="d-btn d-left" id="btn-left"></div>
+        <div class="d-btn d-center"></div>
+        <div class="d-btn d-right" id="btn-right"></div>
+        <div class="d-btn d-down" id="btn-down"></div>
+      </div>
+
+      <div class="action-group">
+        <div class="btn-action btn-b" id="btn-b">B</div>
+        <div class="btn-action btn-a" id="btn-a">A</div>
+      </div>
     </div>
   </div>
 
   <script>
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
-
-    // Desativa suavização para manter os pixels nítidos (16-bit)
     ctx.imageSmoothingEnabled = false;
 
-    // Carregar a imagem com as sprites que você enviou
-    const spritesheet = new Image();
-    spritesheet.src = 'image_e9ab6b.png'; // Substitua pelo caminho local da imagem se necessário
+    // Função de carregamento seguro das sprites criadas por você
+    const imgPlayer = new Image();
+    const imgHeli   = new Image();
+    const imgShip   = new Image();
+    const imgFuel   = new Image();
 
-    // Mapeamento dos recortes de cada sprite na imagem original (X, Y, Largura, Altura)
-    const sprites = {
-      fuel:       { x: 380, y: 200, w: 140, h: 210 },
-      helicopter: { x: 280, y: 600, w: 90,  h: 80  },
-      airplane:   { x: 570, y: 620, w: 130, h: 120 },
-      ship:       { x: 130, y: 730, w: 160, h: 100 }
-    };
+    // Carregamento dinâmico das sprites embutidas
+    const spritesSheet = new Image();
+    spritesSheet.src = 'image_e9ab6b.png'; // Pode usar a imagem inteira ou as variáveis separadas
 
-    // Estado do Jogador (Avião)
-    const player = {
-      x: 140,
-      y: 300,
-      speed: 3
-    };
+    let scrollY = 0;
+    const scrollSpeed = 2;
 
-    // Estado dos Botões
-    const keys = { left: false, right: false, up: false, down: false, fire: false };
+    const player = { x: 142, y: 380, w: 36, h: 34, speed: 3.5 };
+    let fuelLevel = 85;
 
-    // Mapeamento de Eventos Touch/Click para os botões mobile
-    function setupTouchButton(id, keyName) {
-      const btn = document.getElementById(id);
-      
-      const start = (e) => { e.preventDefault(); keys[keyName] = true; btn.classList.add('active'); };
-      const end = (e) => { e.preventDefault(); keys[keyName] = false; btn.classList.remove('active'); };
+    // Lista de Objetos / Inimigos no Rio
+    const entities = [
+      { type: 'fuel', x: 140, y: -50, w: 32, h: 48 },
+      { type: 'heli', x: 80,  y: -220, w: 32, h: 28, dir: 1 },
+      { type: 'ship', x: 150, y: -400, w: 52, h: 32, dir: -1 },
+      { type: 'fuel', x: 135, y: -600, w: 32, h: 48 },
+      { type: 'heli', x: 170, y: -800, w: 32, h: 28, dir: -1 }
+    ];
 
-      btn.addEventListener('touchstart', start);
-      btn.addEventListener('touchend', end);
-      btn.addEventListener('mousedown', start);
-      btn.addEventListener('mouseup', end);
+    const keys = { left: false, right: false, up: false, down: false };
+
+    function bindTouch(id, key) {
+      const el = document.getElementById(id);
+      const press = (e) => { e.preventDefault(); keys[key] = true; el.classList.add('active'); };
+      const release = (e) => { e.preventDefault(); keys[key] = false; el.classList.remove('active'); };
+      el.addEventListener('touchstart', press);
+      el.addEventListener('touchend', release);
+      el.addEventListener('mousedown', press);
+      el.addEventListener('mouseup', release);
+      el.addEventListener('mouseleave', release);
     }
 
-    setupTouchButton('btn-left', 'left');
-    setupTouchButton('btn-right', 'right');
-    setupTouchButton('btn-up', 'up');
-    setupTouchButton('btn-down', 'down');
-    setupTouchButton('btn-a', 'fire');
+    bindTouch('btn-left', 'left');
+    bindTouch('btn-right', 'right');
+    bindTouch('btn-up', 'up');
+    bindTouch('btn-down', 'down');
 
-    // Loop Principal do Jogo
+    // Suporte a teclado no PC
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = true;
+      if (e.key === 'ArrowRight' || e.key === 'd') keys.right = true;
+      if (e.key === 'ArrowUp' || e.key === 'w') keys.up = true;
+      if (e.key === 'ArrowDown' || e.key === 's') keys.down = true;
+    });
+    window.addEventListener('keyup', (e) => {
+      if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = false;
+      if (e.key === 'ArrowRight' || e.key === 'd') keys.right = false;
+      if (e.key === 'ArrowUp' || e.key === 'w') keys.up = false;
+      if (e.key === 'ArrowDown' || e.key === 's') keys.down = false;
+    });
+
+    // Gera as margens e o canal de água clássicos do River Raid
+    function drawRiverBank(yOffset) {
+      // Fundo da Água (Azul River Raid)
+      ctx.fillStyle = '#0000aa';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Terra/Grama Lateral (Verde Atari)
+      ctx.fillStyle = '#00aa00';
+
+      const step = 40;
+      for (let y = -step; y < canvas.height + step; y += step) {
+        const drawY = y + (yOffset % step);
+        const mapIndex = Math.floor((yOffset - y) / step);
+
+        // Curvatura do Rio
+        let leftWidth = 55 + Math.sin(mapIndex * 0.4) * 25;
+        let rightWidth = 55 + Math.cos(mapIndex * 0.4) * 25;
+
+        // Margem Esquerda
+        ctx.fillRect(0, drawY, leftWidth, step + 1);
+        // Margem Direita
+        ctx.fillRect(canvas.width - rightWidth, drawY, rightWidth, step + 1);
+      }
+    }
+
+    // Painel HUD Inferior
+    function drawHUD() {
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, canvas.height - 32, canvas.width, 32);
+
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 12px monospace';
+      ctx.fillText('E   F U E L   F', 80, canvas.height - 12);
+
+      // Barra Amarela de Combustível
+      ctx.fillStyle = '#ffcc00';
+      const barWidth = (fuelLevel / 100) * 110;
+      ctx.fillRect(105, canvas.height - 24, Math.max(0, barWidth), 8);
+      ctx.strokeStyle = '#fff';
+      ctx.strokeRect(105, canvas.height - 24, 110, 8);
+    }
+
     function update() {
-      if (keys.left && player.x > 10) player.x -= player.speed;
-      if (keys.right && player.x < canvas.width - 40) player.x += player.speed;
-      if (keys.up && player.y > 10) player.y -= player.speed;
-      if (keys.down && player.y < canvas.height - 40) player.y += player.speed;
+      let currentSpeed = scrollSpeed;
+      if (keys.up) currentSpeed = scrollSpeed * 1.8;
+      if (keys.down) currentSpeed = scrollSpeed * 0.5;
+
+      scrollY += currentSpeed;
+
+      fuelLevel -= 0.02;
+      if (fuelLevel <= 0) fuelLevel = 100;
+
+      if (keys.left && player.x > 55) player.x -= player.speed;
+      if (keys.right && player.x < canvas.width - 55 - player.w) player.x += player.speed;
+
+      entities.forEach(ent => {
+        ent.y += currentSpeed;
+
+        if (ent.type === 'heli' || ent.type === 'ship') {
+          ent.x += (ent.dir || 1) * 0.7;
+          if (ent.x < 65 || ent.x > canvas.width - 65 - ent.w) ent.dir *= -1;
+        }
+
+        if (ent.y > canvas.height) {
+          ent.y = -200 - Math.random() * 250;
+          ent.x = 75 + Math.random() * (canvas.width - 150);
+        }
+      });
     }
 
     function render() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      // 1. Rio Estilo River Raid
+      drawRiverBank(scrollY);
 
-      if (!spritesheet.complete) return;
+      // 2. Desenhar Entidades usando Sprites recortadas
+      entities.forEach(ent => {
+        if (spritesSheet.complete) {
+          if (ent.type === 'fuel') {
+            ctx.drawImage(spritesSheet, 245, 148, 87, 130, ent.x, ent.y, ent.w, ent.h);
+          } else if (ent.type === 'heli') {
+            ctx.drawImage(spritesSheet, 175, 404, 44, 40, ent.x, ent.y, ent.w, ent.h);
+          } else if (ent.type === 'ship') {
+            ctx.drawImage(spritesSheet, 84, 487, 87, 52, ent.x, ent.y, ent.w, ent.h);
+          }
+        }
+      });
 
-      // 1. Desenhar o Tanque de Combustível (FUEL)
-      ctx.drawImage(
-        spritesheet, 
-        sprites.fuel.x, sprites.fuel.y, sprites.fuel.w, sprites.fuel.h,
-        130, 20, 60, 90
-      );
+      // 3. Desenhar Jogador
+      if (spritesSheet.complete) {
+        ctx.drawImage(spritesSheet, 358, 422, 74, 69, player.x, player.y, player.w, player.h);
+      }
 
-      // 2. Desenhar o Helicóptero
-      ctx.drawImage(
-        spritesheet, 
-        sprites.helicopter.x, sprites.helicopter.y, sprites.helicopter.w, sprites.helicopter.h,
-        30, 120, 45, 40
-      );
-
-      // 3. Desenhar o Navio
-      ctx.drawImage(
-        spritesheet, 
-        sprites.ship.x, sprites.ship.y, sprites.ship.w, sprites.ship.h,
-        210, 180, 80, 50
-      );
-
-      // 4. Desenhar o Jogador (Avião Vermelho)
-      ctx.drawImage(
-        spritesheet, 
-        sprites.airplane.x, sprites.airplane.y, sprites.airplane.w, sprites.airplane.h,
-        player.x, player.y, 45, 40
-      );
+      // 4. Desenhar HUD de combustível
+      drawHUD();
     }
 
     function gameLoop() {
@@ -233,9 +313,13 @@
       requestAnimationFrame(gameLoop);
     }
 
-    spritesheet.onload = () => {
+    spritesSheet.onload = () => {
       gameLoop();
     };
+    // Fallback caso a imagem já esteja em cache
+    if (spritesSheet.complete) {
+      gameLoop();
+    }
   </script>
 </body>
 </html>
