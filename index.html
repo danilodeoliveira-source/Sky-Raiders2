@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>River Raid 16-Bit Touch Edition</title>
+    <title>River Raid 16-Bit Mobile Joystick</title>
     <style>
         * {
             box-sizing: border-box;
@@ -27,10 +27,10 @@
             touch-action: none; /* Bloqueia rolar e dar zoom no mobile */
         }
         h1 {
-            margin-bottom: 8px;
+            margin-bottom: 6px;
             color: #ffcc00;
             text-shadow: 2px 2px #ff0055;
-            font-size: 20px;
+            font-size: 18px;
             letter-spacing: 1px;
             text-align: center;
         }
@@ -38,13 +38,14 @@
             position: relative;
             box-shadow: 0 0 25px rgba(0, 255, 204, 0.4);
             border: 3px solid #334466;
-            border-radius: 6px;
+            border-radius: 8px;
             width: 100%;
             max-width: 420px;
             display: flex;
             justify-content: center;
             align-items: center;
             background: #000;
+            overflow: hidden;
         }
         canvas {
             display: block;
@@ -52,16 +53,86 @@
             image-rendering: pixelated;
             width: 100%;
             height: auto;
-            max-height: 80vh;
+            max-height: 75vh;
+        }
+
+        /* --- CONTROLES VIRTUAIS NOS CANTOS INFERIORES --- */
+        .controls-overlay {
+            position: absolute;
+            bottom: 12px;
+            left: 0;
+            right: 0;
+            height: 120px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            padding: 0 15px;
+            pointer-events: none; /* Permite interagir apenas com os botões */
+            z-index: 10;
+        }
+
+        /* Joystick (Esquerda) */
+        #joystick-base {
+            width: 100px;
+            height: 100px;
+            background: rgba(20, 30, 45, 0.65);
+            border: 2px solid rgba(0, 255, 204, 0.6);
+            border-radius: 50%;
+            position: relative;
+            pointer-events: auto;
+            touch-action: none;
+            backdrop-filter: blur(3px);
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+        }
+        #joystick-knob {
+            width: 44px;
+            height: 44px;
+            background: radial-gradient(circle, #00ffcc, #008888);
+            border: 2px solid #ffffff;
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 10px rgba(0, 255, 204, 0.8);
+            pointer-events: none;
+            transition: transform 0.05s ease-out;
+        }
+
+        /* Botão de Tiro (Direita) */
+        #shoot-btn {
+            width: 80px;
+            height: 80px;
+            background: radial-gradient(circle, #ff0055, #990033);
+            border: 3px solid #ff6699;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #ffffff;
+            font-weight: bold;
+            font-size: 14px;
+            letter-spacing: 1px;
+            text-shadow: 1px 1px 2px #000;
+            box-shadow: 0 0 15px rgba(255, 0, 85, 0.6);
+            pointer-events: auto;
+            touch-action: none;
             cursor: pointer;
         }
+        #shoot-btn:active, #shoot-btn.active {
+            background: radial-gradient(circle, #ff3300, #cc0000);
+            border-color: #ffffff;
+            transform: scale(0.93);
+            box-shadow: 0 0 20px rgba(255, 51, 0, 0.9);
+        }
+
         .instructions {
-            margin-top: 10px;
+            margin-top: 8px;
             font-size: 11px;
             color: #aaa;
             text-align: center;
-            max-width: 360px;
-            line-height: 1.4;
+            max-width: 380px;
+            line-height: 1.3;
         }
         .instructions span {
             color: #00ffcc;
@@ -75,11 +146,22 @@
 
     <div id="game-container">
         <canvas id="gameCanvas" width="360" height="540"></canvas>
+
+        <!-- Overlays de Controles Touch nos Cantos -->
+        <div class="controls-overlay">
+            <!-- Joystick Esquerdo -->
+            <div id="joystick-base">
+                <div id="joystick-knob"></div>
+            </div>
+
+            <!-- Botão de Tiro Direito -->
+            <div id="shoot-btn">TIRO</div>
+        </div>
     </div>
 
     <div class="instructions">
-        <span>Toque e Arraste na tela</span> para mover e atirar!<br>
-        <span>Destrua o FUEL</span> para ganhar combustível instantâneo!
+        <span>Esq:</span> Joystick (Direção/Velocidade)<br>
+        <span>Dir:</span> Clique = 1 tiro | Segure (0.5s) = Tiros contínuos
     </div>
 
 <script>
@@ -144,7 +226,7 @@ const player = {
     y: canvas.height - 90,
     width: 24,
     height: 28,
-    targetX: canvas.width / 2 - 12,
+    speedX: 4,
     fuel: 100,
     maxFuel: 100,
     lastShootTime: 0
@@ -198,57 +280,113 @@ function spawnEntities() {
     }
 }
 
-// --- CONTROLES TOUCH ---
-let isTouching = false;
-let touchPos = { x: canvas.width / 2, y: canvas.height / 2 };
+// --- LÓGICA DE CONTROLE DO JOYSTICK ---
+const joystickBase = document.getElementById('joystick-base');
+const joystickKnob = document.getElementById('joystick-knob');
+let joystickActive = false;
+let joystickVector = { x: 0, y: 0 }; // Valores de -1.0 a +1.0
 
-function getCanvasPos(e) {
-    const rect = canvas.getBoundingClientRect();
-    const touch = e.touches ? e.touches[0] : e;
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-    return {
-        x: (touch.clientX - rect.left) * scaleX,
-        y: (touch.clientY - rect.top) * scaleY
-    };
+function handleJoystickStart(e) {
+    if (e.cancelable) e.preventDefault();
+    initAudio();
+    if (gameState === 'START' || gameState === 'GAMEOVER') {
+        resetGame();
+        gameState = 'PLAYING';
+    }
+    joystickActive = true;
+    updateJoystickPos(e);
 }
 
-function handleTouchStart(e) {
+function handleJoystickMove(e) {
+    if (e.cancelable) e.preventDefault();
+    if (!joystickActive) return;
+    updateJoystickPos(e);
+}
+
+function handleJoystickEnd(e) {
+    if (e.cancelable) e.preventDefault();
+    joystickActive = false;
+    joystickVector = { x: 0, y: 0 };
+    joystickKnob.style.transform = `translate(-50%, -50%)`;
+}
+
+function updateJoystickPos(e) {
+    const rect = joystickBase.getBoundingClientRect();
+    const touch = e.touches ? e.touches[0] : e;
+    
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    
+    let dx = touch.clientX - centerX;
+    let dy = touch.clientY - centerY;
+    
+    const maxRadius = rect.width / 2;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    
+    if (distance > maxRadius) {
+        dx = (dx / distance) * maxRadius;
+        dy = (dy / distance) * maxRadius;
+    }
+    
+    joystickKnob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+    
+    joystickVector.x = dx / maxRadius;
+    joystickVector.y = dy / maxRadius;
+}
+
+joystickBase.addEventListener('touchstart', handleJoystickStart, { passive: false });
+joystickBase.addEventListener('touchmove', handleJoystickMove, { passive: false });
+joystickBase.addEventListener('touchend', handleJoystickEnd, { passive: false });
+joystickBase.addEventListener('touchcancel', handleJoystickEnd, { passive: false });
+
+// Support Mouse no Joystick para testes no PC
+joystickBase.addEventListener('mousedown', handleJoystickStart);
+window.addEventListener('mousemove', (e) => { if (joystickActive) handleJoystickMove(e); });
+window.addEventListener('mouseup', handleJoystickEnd);
+
+
+// --- LÓGICA DO BOTÃO DE TIRO (CLIQUE ÚNICO x SEGURAR 0.5s) ---
+const shootBtn = document.getElementById('shoot-btn');
+let isShootPressed = false;
+let shootPressStartTime = 0;
+
+function fireBullet() {
+    bullets.push({ x: player.x + player.width / 2 - 2, y: player.y, width: 4, height: 10 });
+    playSound('shoot');
+    player.lastShootTime = Date.now();
+}
+
+function handleShootStart(e) {
     if (e.cancelable) e.preventDefault();
     initAudio();
 
     if (gameState === 'START' || gameState === 'GAMEOVER') {
         resetGame();
         gameState = 'PLAYING';
+        return;
     }
 
-    isTouching = true;
-    touchPos = getCanvasPos(e);
-    player.targetX = touchPos.x - player.width / 2;
+    isShootPressed = true;
+    shootPressStartTime = Date.now();
+    shootBtn.classList.add('active');
+
+    // TIRO IMEDIATO NO CLIQUE
+    if (gameState === 'PLAYING') {
+        fireBullet();
+    }
 }
 
-function handleTouchMove(e) {
+function handleShootEnd(e) {
     if (e.cancelable) e.preventDefault();
-    if (!isTouching) return;
-    touchPos = getCanvasPos(e);
-    player.targetX = touchPos.x - player.width / 2;
+    isShootPressed = false;
+    shootBtn.classList.remove('active');
 }
 
-function handleTouchEnd(e) {
-    if (e.cancelable) e.preventDefault();
-    isTouching = false;
-}
-
-// Eventos Touch (Mobile)
-canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
-canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
-canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
-canvas.addEventListener('touchcancel', handleTouchEnd, { passive: false });
-
-// Suporte para Mouse (PC)
-canvas.addEventListener('mousedown', handleTouchStart);
-canvas.addEventListener('mousemove', (e) => { if (isTouching) handleTouchMove(e); });
-window.addEventListener('mouseup', handleTouchEnd);
+shootBtn.addEventListener('touchstart', handleShootStart, { passive: false });
+shootBtn.addEventListener('touchend', handleShootEnd, { passive: false });
+shootBtn.addEventListener('touchcancel', handleShootEnd, { passive: false });
+shootBtn.addEventListener('mousedown', handleShootStart);
+window.addEventListener('mouseup', handleShootEnd);
 
 // Support Teclado
 const keys = {};
@@ -259,6 +397,9 @@ window.addEventListener('keydown', e => {
         resetGame();
         gameState = 'PLAYING';
     }
+    if (gameState === 'PLAYING' && e.code === 'Space' && !e.repeat) {
+        fireBullet();
+    }
 });
 window.addEventListener('keyup', e => keys[e.code] = false);
 
@@ -266,45 +407,47 @@ window.addEventListener('keyup', e => keys[e.code] = false);
 function update() {
     if (gameState !== 'PLAYING') return;
 
-    // Velocidade de rolamento
-    let scrollSpeed = 2.5;
-    if (isTouching) {
-        if (touchPos.y < canvas.height * 0.35) {
-            scrollSpeed = 4.5;
-        } else if (touchPos.y > canvas.height * 0.65) {
-            scrollSpeed = 1.2;
-        }
+    // 1. Velocidade de rolamento (Joystick Y ou Teclado)
+    let scrollSpeed = 2.5; // Normal
+    if (joystickVector.y < -0.3 || keys['KeyW'] || keys['ArrowUp']) {
+        scrollSpeed = 4.5; // Acelerar (Para cima)
+    } else if (joystickVector.y > 0.3 || keys['KeyS'] || keys['ArrowDown']) {
+        scrollSpeed = 1.2; // Frear (Para baixo)
     }
-    if (keys['KeyW'] || keys['ArrowUp']) scrollSpeed = 4.5;
-    if (keys['KeyS'] || keys['ArrowDown']) scrollSpeed = 1.2;
 
     distance += scrollSpeed;
 
-    // Consumo de Combustível
+    // 2. Consumo de Combustível
     player.fuel -= 0.06 * (scrollSpeed / 2.5);
     if (player.fuel <= 0) {
         playerExplode();
         return;
     }
 
-    // Movimento do Jogador
-    if (isTouching) {
-        player.x += (player.targetX - player.x) * 0.25;
+    // 3. Movimento Lateral (Joystick X ou Teclado)
+    if (Math.abs(joystickVector.x) > 0.1) {
+        player.x += joystickVector.x * player.speedX;
     } else {
-        if (keys['KeyA'] || keys['ArrowLeft']) player.x -= 3.5;
-        if (keys['KeyD'] || keys['ArrowRight']) player.x += 3.5;
+        if (keys['KeyA'] || keys['ArrowLeft']) player.x -= player.speedX;
+        if (keys['KeyD'] || keys['ArrowRight']) player.x += player.speedX;
     }
 
-    // Disparo Automático
+    // Limites de tela do jogador
+    player.x = Math.max(10, Math.min(canvas.width - player.width - 10, player.x));
+
+    // 4. Lógica de Tiro Contínuo ao Segurar por >= 0.5s (500ms)
     const now = Date.now();
-    const shouldShoot = isTouching || keys['Space'];
-    if (shouldShoot && now - player.lastShootTime > 170) {
-        bullets.push({ x: player.x + player.width / 2 - 2, y: player.y, width: 4, height: 10 });
-        playSound('shoot');
-        player.lastShootTime = now;
+    const isHoldingShoot = isShootPressed || keys['Space'];
+    if (isHoldingShoot) {
+        const holdDuration = now - shootPressStartTime;
+        if (holdDuration >= 500) { // Passou de 0.5s
+            if (now - player.lastShootTime > 160) { // Rajada contínua
+                fireBullet();
+            }
+        }
     }
 
-    // Atualizar Rio
+    // 5. Atualizar Rio
     for (let slice of riverSlices) {
         slice.y += scrollSpeed;
     }
@@ -314,7 +457,7 @@ function update() {
         riverSlices.unshift(createRiverSlice(newY));
     }
 
-    // Colisão Margens
+    // 6. Colisão com Margens
     const playerSlice = riverSlices.find(s => player.y >= s.y && player.y < s.y + sliceHeight);
     if (playerSlice) {
         if (player.x < playerSlice.left || player.x + player.width > playerSlice.right) {
@@ -323,7 +466,7 @@ function update() {
         }
     }
 
-    // Atualizar Balas
+    // 7. Atualizar Balas
     for (let i = bullets.length - 1; i >= 0; i--) {
         bullets[i].y -= 7;
         if (bullets[i].y < -10) bullets.splice(i, 1);
@@ -331,7 +474,7 @@ function update() {
 
     spawnEntities();
 
-    // Inimigos
+    // 8. Inimigos
     for (let i = enemies.length - 1; i >= 0; i--) {
         let e = enemies[i];
         e.y += scrollSpeed;
@@ -365,7 +508,7 @@ function update() {
         if (e && e.y > canvas.height + 40) enemies.splice(i, 1);
     }
 
-    // --- TANQUES DE COMBUSTÍVEL (FUEL) ---
+    // 9. Tanques de Combustível (FUEL)
     for (let i = fuelTanks.length - 1; i >= 0; i--) {
         let f = fuelTanks[i];
         f.y += scrollSpeed;
@@ -376,7 +519,7 @@ function update() {
             playSound('fuel');
         }
 
-        // DESTRUIR O TANQUE DE GASOLINA COM O TIRO:
+        // DESTRUIR O TANQUE DE GASOLINA COM O TIRO (+30 DE COMBUSTÍVEL)
         for (let j = bullets.length - 1; j >= 0; j--) {
             let b = bullets[j];
             if (checkCollision(b, f)) {
@@ -384,10 +527,7 @@ function update() {
                 playSound('explosion');
                 playSound('fuel');
                 score += 80;
-
-                // AUMENTA O TANQUE DO AVIÃO (+30 DE RECARGA INSTANTÂNEA)
                 player.fuel = Math.min(player.maxFuel, player.fuel + 30);
-
                 fuelTanks.splice(i, 1);
                 bullets.splice(j, 1);
                 break;
@@ -431,7 +571,8 @@ function playerExplode() {
     createExplosion(player.x + player.width / 2, player.y + player.height / 2);
     playSound('explosion');
     gameState = 'GAMEOVER';
-    isTouching = false;
+    isShootPressed = false;
+    joystickActive = false;
     if (score > highScore) {
         highScore = score;
         localStorage.setItem('rr16_highscore', highScore);
@@ -443,7 +584,6 @@ function resetGame() {
     distance = 0;
     player.fuel = 100;
     player.x = canvas.width / 2 - 12;
-    player.targetX = player.x;
     bullets = [];
     enemies = [];
     fuelTanks = [];
@@ -565,9 +705,9 @@ function draw() {
 
     // Overlays
     if (gameState === 'START') {
-        drawOverlay('RIVER RAID 16-BIT', 'Toque na tela para Iniciar');
+        drawOverlay('RIVER RAID 16-BIT', 'Toque no Joystick/Tiro para Iniciar');
     } else if (gameState === 'GAMEOVER') {
-        drawOverlay('FIM DE JOGO', 'Toque na tela para Reiniciar');
+        drawOverlay('FIM DE JOGO', 'Toque para Reiniciar');
     }
 }
 
@@ -581,7 +721,7 @@ function drawOverlay(title, subtitle) {
     ctx.fillText(title, canvas.width / 2, canvas.height / 2 - 20);
 
     ctx.fillStyle = '#ffffff';
-    ctx.font = '12px monospace';
+    ctx.font = '11px monospace';
     ctx.fillText(subtitle, canvas.width / 2, canvas.height / 2 + 20);
     ctx.textAlign = 'left';
 }
