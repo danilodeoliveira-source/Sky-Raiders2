@@ -3,44 +3,505 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Game</title>
+    <title>River Raid Retro Console</title>
     <style>
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
         }
 
         body {
-            background-color: #0f0f14;
+            background-color: #0b0c10;
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
+            font-family: monospace, sans-serif;
         }
 
-        #game-wrapper {
-            width: 320px;
-            height: 480px;
-            background-color: #1a1a24;
+        /* Console Frame */
+        #console {
+            width: 330px;
+            background: #232634;
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.8), inset 0 2px 3px rgba(255, 255, 255, 0.15);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            border: 2px solid #313547;
+        }
+
+        /* Moldura da Tela */
+        .screen-bezel {
+            width: 100%;
+            background-color: #151722;
             border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+            padding: 12px;
+            box-shadow: inset 0 4px 10px rgba(0, 0, 0, 0.8);
+            border: 1px solid #2a2d3d;
         }
 
+        .screen-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .power-led {
+            width: 8px;
+            height: 8px;
+            background-color: #ff3333;
+            border-radius: 50%;
+            box-shadow: 0 0 8px #ff3333;
+        }
+
+        .screen-title {
+            color: #89b4fa;
+            font-size: 10px;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+
+        /* Canvas da Tela */
         #gameCanvas {
             width: 100%;
-            height: 100%;
+            height: 270px;
+            background-color: #000000;
+            border-radius: 6px;
             display: block;
+            image-rendering: pixelated;
+        }
+
+        /* Área dos Controles */
+        .controls {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 5px;
+        }
+
+        /* D-Pad via CSS Grid */
+        .dpad {
+            display: grid;
+            grid-template-columns: 28px 28px 28px;
+            grid-template-rows: 28px 28px 28px;
+            width: 84px;
+            height: 84px;
+        }
+
+        .dpad-btn {
+            background-color: #45475a;
+            border: 1px solid #313244;
+            cursor: pointer;
+        }
+
+        .dpad-btn:active { background-color: #585b70; }
+
+        .dpad-up { grid-column: 2; grid-row: 1; border-radius: 6px 6px 0 0; }
+        .dpad-left { grid-column: 1; grid-row: 2; border-radius: 6px 0 0 6px; }
+        .dpad-center { grid-column: 2; grid-row: 2; background-color: #45475a; }
+        .dpad-right { grid-column: 3; grid-row: 2; border-radius: 0 6px 6px 0; }
+        .dpad-down { grid-column: 2; grid-row: 3; border-radius: 0 0 6px 6px; }
+
+        /* Botões A / B */
+        .action-buttons {
+            display: flex;
+            gap: 12px;
+            transform: rotate(-10deg);
+        }
+
+        .btn {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            border: none;
+            font-weight: bold;
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 4px 0 rgba(0, 0, 0, 0.5);
+        }
+
+        .btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 rgba(0, 0, 0, 0.5);
+        }
+
+        .btn-b { background-color: #f9e2af; color: #11111b; }
+        .btn-a { background-color: #f38ba8; color: #11111b; }
+
+        /* System Buttons */
+        .system-buttons {
+            display: flex;
+            gap: 16px;
+        }
+
+        .sys-btn {
+            width: 40px;
+            height: 10px;
+            background-color: #45475a;
+            border: none;
+            border-radius: 5px;
+            transform: rotate(-20deg);
+            cursor: pointer;
         }
     </style>
 </head>
 <body>
 
-    <div id="game-wrapper">
-        <canvas id="gameCanvas" width="320" height="480"></canvas>
+    <div id="console">
+        <div class="screen-bezel">
+            <div class="screen-header">
+                <div class="power-led"></div>
+                <div class="screen-title">RIVER RAID 8-BIT</div>
+            </div>
+            <canvas id="gameCanvas" width="220" height="270"></canvas>
+        </div>
+
+        <div class="controls">
+            <div class="dpad">
+                <button class="dpad-btn dpad-up" id="btn-up"></button>
+                <button class="dpad-btn dpad-left" id="btn-left"></button>
+                <div class="dpad-center"></div>
+                <button class="dpad-btn dpad-right" id="btn-right"></button>
+                <button class="dpad-btn dpad-down" id="btn-down"></button>
+            </div>
+
+            <div class="action-buttons">
+                <button class="btn btn-b" id="btn-b">B</button>
+                <button class="btn btn-a" id="btn-a">A</button>
+            </div>
+        </div>
+
+        <div class="system-buttons">
+            <button class="sys-btn" id="btn-select"></button>
+            <button class="sys-btn" id="btn-start"></button>
+        </div>
     </div>
 
-    <script src="main.js"></script>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // PALETAS DE CORES PIXEL ART
+        const C = {
+            O: '#E65100', // Laranja FUEL
+            W: '#FFFFFF', // Branco
+            Y: '#FACC15', // Amarelo
+            G: '#4D7C0F', // Verde
+            B: '#1E40AF', // Azul
+            K: '#111827', // Preto
+            R: '#DC2626', // Vermelho
+            BR: '#78350F' // Marrom
+        };
+
+        // MATRIZES DE PIXEL ART
+        const SPRITES = {
+            FUEL: {
+                scale: 1.5,
+                matrix: [
+                    "  YYYYYYYY  ",
+                    "  Y FUEL Y  ",
+                    "     VV     ",
+                    "  OOOOOOOO  ",
+                    " OOWWOOWWOO ",
+                    " OOWWOOWWOO ",
+                    " OOOOOOOOOO ",
+                    " OOWWOOWWOO ",
+                    " OOWWOOWWOO ",
+                    "  OOOOOOOO  "
+                ]
+            },
+            HELI: {
+                scale: 1.5,
+                matrix: [
+                    "   YYYYYY   ",
+                    "     YY     ",
+                    "   GGGGGG   ",
+                    "  GGBBBGGG  ",
+                    "GGGGGGGGGGG ",
+                    "   G  K     ",
+                    "  KKKKKKK   "
+                ]
+            },
+            SHIP: {
+                scale: 1.5,
+                matrix: [
+                    "  W         ",
+                    " WW  Y R B  ",
+                    " WWW W W W  ",
+                    "KKKKKKKKKKKK",
+                    "RRRRRRRRRRRR",
+                    " RRRRRRRRRR "
+                ]
+            },
+            PLANE: {
+                scale: 1.5,
+                matrix: [
+                    "    WWWW    ",
+                    "     BR     ",
+                    "RRRRRRRRRRRR",
+                    "R R R  R R R",
+                    "    BRBR    ",
+                    " RRRRRRRRRR ",
+                    "     RR     "
+                ]
+            },
+            PLAYER: {
+                scale: 1.5,
+                matrix: [
+                    "    YY    ",
+                    "    YY    ",
+                    "   YYYY   ",
+                    "  YYYYYY  ",
+                    " YYYYYYYY ",
+                    "YYYYYYYYYY",
+                    " Y  YY  Y ",
+                    "    OO    "
+                ]
+            }
+        };
+
+        function drawSprite(spriteKey, x, y) {
+            const spr = SPRITES[spriteKey];
+            const scale = spr.scale;
+            const matrix = spr.matrix;
+
+            for (let r = 0; r < matrix.length; r++) {
+                for (let c = 0; c < matrix[r].length; c++) {
+                    const char = matrix[r][c];
+                    if (char !== ' ') {
+                        ctx.fillStyle = (char === 'F' || char === 'U' || char === 'E' || char === 'L' || char === 'V') 
+                            ? C.Y : (C[char] || '#FFF');
+                        ctx.fillRect(x + c * scale, y + r * scale, scale, scale);
+                    }
+                }
+            }
+        }
+
+        let player = { x: 100, y: 210, w: 15, h: 12, speed: 2.5 };
+        let fuel = 100;
+        let score = 0;
+        let gameOver = false;
+        let riverOffset = 0;
+        const scrollSpeed = 1.2;
+
+        const bullets = [];
+        let entities = [];
+        const keys = { up: false, down: false, left: false, right: false };
+
+        function getRiverBounds(y) {
+            const center = 110 + Math.sin((y + riverOffset) * 0.015) * 35;
+            const width = 110 + Math.cos((y + riverOffset) * 0.01) * 20;
+            return { left: center - width / 2, right: center + width / 2 };
+        }
+
+        function spawnEntity() {
+            if (Math.random() < 0.025) {
+                const types = ['HELI', 'SHIP', 'PLANE', 'FUEL'];
+                const type = types[Math.floor(Math.random() * types.length)];
+                const bounds = getRiverBounds(-30);
+                const x = bounds.left + Math.random() * Math.max(10, (bounds.right - bounds.left - 25));
+                
+                entities.push({
+                    type,
+                    x,
+                    y: -30,
+                    vx: (type === 'HELI' || type === 'SHIP') ? (Math.random() > 0.5 ? 0.8 : -0.8) : 0
+                });
+            }
+        }
+
+        function update() {
+            if (gameOver) return;
+
+            fuel -= 0.06;
+            if (fuel <= 0) {
+                gameOver = true;
+                return;
+            }
+
+            riverOffset += scrollSpeed;
+
+            if (keys.left) player.x -= player.speed;
+            if (keys.right) player.x += player.speed;
+            if (keys.up && player.y > 30) player.y -= player.speed;
+            if (keys.down && player.y < canvas.height - 30) player.y += player.speed;
+
+            const currentBounds = getRiverBounds(player.y);
+            if (player.x < currentBounds.left || player.x + player.w > currentBounds.right) {
+                gameOver = true;
+            }
+
+            // Atualiza Tiros
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                bullets[i].y -= 5;
+                if (bullets[i].y < 0) bullets.splice(i, 1);
+            }
+
+            spawnEntity();
+
+            // Loop Reverso Seguro para evitar bugs no Array
+            for (let i = entities.length - 1; i >= 0; i--) {
+                const e = entities[i];
+                e.y += scrollSpeed;
+                e.x += e.vx;
+
+                const b = getRiverBounds(e.y);
+                if (e.x < b.left || e.x > b.right - 20) e.vx *= -1;
+
+                let destroyed = false;
+                for (let j = bullets.length - 1; j >= 0; j--) {
+                    const bullet = bullets[j];
+                    if (bullet.x >= e.x && bullet.x <= e.x + 22 &&
+                        bullet.y >= e.y && bullet.y <= e.y + 18) {
+                        score += (e.type === 'FUEL') ? 50 : 100;
+                        bullets.splice(j, 1);
+                        destroyed = true;
+                        break;
+                    }
+                }
+
+                if (destroyed) {
+                    entities.splice(i, 1);
+                    continue;
+                }
+
+                // Colisão com Jogador
+                if (player.x < e.x + 20 && player.x + player.w > e.x &&
+                    player.y < e.y + 18 && player.y + player.h > e.y) {
+                    if (e.type === 'FUEL') {
+                        fuel = Math.min(100, fuel + 35);
+                        entities.splice(i, 1);
+                    } else {
+                        gameOver = true;
+                    }
+                    continue;
+                }
+
+                if (e.y > canvas.height + 40) {
+                    entities.splice(i, 1);
+                }
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Desenha Margens e Rio
+            for (let y = 0; y < canvas.height; y += 4) {
+                const bounds = getRiverBounds(y);
+                ctx.fillStyle = '#386641';
+                ctx.fillRect(0, y, bounds.left, 4);
+                ctx.fillRect(bounds.right, y, canvas.width - bounds.right, 4);
+
+                ctx.fillStyle = '#1d4ed8';
+                ctx.fillRect(bounds.left, y, bounds.right - bounds.left, 4);
+            }
+
+            if (gameOver) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#f38ba8';
+                ctx.font = 'bold 16px monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText('GAME OVER', canvas.width / 2, 110);
+                ctx.fillStyle = '#FFF';
+                ctx.font = '11px monospace';
+                ctx.fillText(`SCORE: ${Math.floor(score)}`, canvas.width / 2, 135);
+                ctx.fillText('Aperte A p/ Recomeçar', canvas.width / 2, 160);
+                return;
+            }
+
+            // Desenha Entidades
+            entities.forEach(e => drawSprite(e.type, e.x, e.y));
+
+            // Desenha Tiros
+            ctx.fillStyle = '#FACC15';
+            bullets.forEach(b => ctx.fillRect(b.x, b.y, 2, 6));
+
+            // Desenha Jogador
+            drawSprite('PLAYER', player.x, player.y);
+
+            // HUD
+            ctx.fillStyle = '#11111b';
+            ctx.fillRect(0, 0, canvas.width, 24);
+            
+            ctx.fillStyle = '#FFF';
+            ctx.font = 'bold 10px monospace';
+            ctx.textAlign = 'left';
+            ctx.fillText(`SCORE:${Math.floor(score)}`, 6, 15);
+
+            ctx.fillText(`FUEL`, 120, 15);
+            ctx.fillStyle = '#313244';
+            ctx.fillRect(150, 6, 60, 10);
+            ctx.fillStyle = fuel > 25 ? '#a6e3a1' : '#f38ba8';
+            ctx.fillRect(151, 7, (fuel / 100) * 58, 8);
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function shoot() {
+            if (gameOver) {
+                gameOver = false;
+                fuel = 100;
+                score = 0;
+                entities = [];
+                player.x = 100;
+                player.y = 210;
+                return;
+            }
+            bullets.push({ x: player.x + 6, y: player.y });
+        }
+
+        // Teclado
+        window.addEventListener('keydown', e => {
+            if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = true;
+            if (e.key === 'ArrowRight' || e.key === 'd') keys.right = true;
+            if (e.key === 'ArrowUp' || e.key === 'w') keys.up = true;
+            if (e.key === 'ArrowDown' || e.key === 's') keys.down = true;
+            if (e.key === ' ' || e.key === 'j') shoot();
+        });
+
+        window.addEventListener('keyup', e => {
+            if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = false;
+            if (e.key === 'ArrowRight' || e.key === 'd') keys.right = false;
+            if (e.key === 'ArrowUp' || e.key === 'w') keys.up = false;
+            if (e.key === 'ArrowDown' || e.key === 's') keys.down = false;
+        });
+
+        // Controles de Toque/Clique nos Botões da Tela
+        function bindButton(id, key) {
+            const btn = document.getElementById(id);
+            btn.addEventListener('mousedown', () => keys[key] = true);
+            btn.addEventListener('mouseup', () => keys[key] = false);
+            btn.addEventListener('mouseleave', () => keys[key] = false);
+            btn.addEventListener('touchstart', e => { e.preventDefault(); keys[key] = true; });
+            btn.addEventListener('touchend', e => { e.preventDefault(); keys[key] = false; });
+        }
+
+        bindButton('btn-up', 'up');
+        bindButton('btn-down', 'down');
+        bindButton('btn-left', 'left');
+        bindButton('btn-right', 'right');
+
+        document.getElementById('btn-a').addEventListener('click', shoot);
+        document.getElementById('btn-b').addEventListener('click', shoot);
+
+        gameLoop();
+    </script>
 </body>
 </html>
