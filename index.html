@@ -48,3 +48,34 @@
     <script src="main.js"></script>
 </body>
 </html>
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+// Ajusta a resolução interna do Canvas
+canvas.width = 320;
+canvas.height = 480;
+
+// Carregamento da imagem com tratamento de erro
+const bgImage = new Image();
+
+// Certifique-se de que o arquivo 'image_e9ab6b.png' está na MESMA pasta do index.html
+bgImage.src = 'image_e9ab6b.png'; 
+
+bgImage.onload = () => {
+    // Renderiza a imagem assim que for carregada
+    ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
+};
+
+bgImage.onerror = () => {
+    console.error("Não foi possível carregar 'image_e9ab6b.png'. Verifique se o nome e o caminho estão corretos.");
+    
+    // Fundo de emergência para a tela não ficar totalmente escura/vazia
+    ctx.fillStyle = '#181825';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '14px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Erro: Imagem não encontrada', canvas.width / 2, canvas.height / 2);
+};
